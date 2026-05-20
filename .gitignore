@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.env
+
+# Environment / secrets
+.env.local
+.env.*.local
+*.env
+secrets/
+*.pem
+*.key
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.lcov
+
+# Type checking
+.mypy_cache/
+.ruff_cache/
+.pytype/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Docker
+.dockerignore
+
+# Build artifacts
+graphify-out/

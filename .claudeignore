@@ -1,0 +1,29 @@
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Test / coverage output
+htmlcov/
+.coverage
+coverage.xml
+.pytest_cache/
+
+# Type-checker caches
+.mypy_cache/
+.ruff_cache/
+
+# Logs
+logs/
+*.log
+
+# Claude graphify output
+graphify-out/
+
+# Docker layer cache
+.docker/
