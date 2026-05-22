@@ -1,0 +1,114 @@
+[build-system]
+requires = ["setuptools>=71", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stateful-personal-assistant"
+version = "0.1.0"
+description = "Multi-tool AI agent with HITL, streaming, and persistent state"
+readme = "README.md"
+# Design targets Python 3.11; local dev may use 3.10+
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+# ── Ruff ───────────────────────────────────────────────────────────────────────
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear (likely bugs and design issues)
+    "C4",   # flake8-comprehensions (cleaner comprehensions)
+    "UP",   # pyupgrade (modern Python idioms)
+]
+ignore = [
+    "E501",   # line too long — handled by formatter, not linter
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests use assert and may skip annotations
+"tests/**/*.py" = ["S101", "B011"]
+# Alembic env boilerplate is auto-generated
+"alembic/env.py" = ["E402", "F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+# ── Mypy ───────────────────────────────────────────────────────────────────────
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+# Show the error codes so suppressions can be targeted
+show_error_codes = true
+# Alembic migrations are auto-generated; skip strict checks there
+exclude = ["^alembic/"]
+
+# Third-party libraries without bundled type stubs
+[[tool.mypy.overrides]]
+module = [
+    "langgraph.*",
+    "langgraph_checkpoint_postgres.*",
+    "langchain.*",
+    "langchain_core.*",
+    "langchain_openai.*",
+    "structlog.*",
+    "simpleeval.*",
+    "tavily.*",
+    "alembic.*",
+    "asyncpg.*",
+    "argon2.*",
+]
+ignore_missing_imports = true
+
+# ── Pytest ─────────────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+# Add project root to sys.path so 'src' imports resolve without installing
+pythonpath = ["."]
+# Exit code 5 ("no tests collected") treated as pass during scaffold phase;
+# use `pytest --ignore-glob` in CI if empty collection must not block pipeline.
+norecursedirs = ["alembic", "config", ".git", "__pycache__", "*.egg-info"]
+filterwarnings = [
+    "error",
+    # LangChain/LangGraph deprecation noise expected during rapid development
+    "ignore::DeprecationWarning:langchain",
+    "ignore::DeprecationWarning:langgraph",
+    "ignore::PendingDeprecationWarning",
+]
+
+# ── Coverage ───────────────────────────────────────────────────────────────────
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "src/**/__init__.py",
+]
+
+[tool.coverage.report]
+# T-001 acceptance criterion: coverage threshold ≥ 80%
+fail_under = 80
+show_missing = true
+skip_empty = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@(abc\\.)?abstractmethod",
+    "\\.\\.\\.",
+]

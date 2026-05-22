@@ -1,0 +1,114 @@
+# ── LangGraph agent framework + PostgreSQL checkpointer ───────────────────────
+langgraph==1.2.1
+langgraph-checkpoint==4.1.0
+langgraph-checkpoint-postgres==3.1.0
+langgraph-prebuilt==1.1.0
+langgraph-sdk==0.3.14
+
+# ── LangChain ecosystem ────────────────────────────────────────────────────────
+langchain==1.3.1
+langchain-core==1.4.0
+langchain-openai==1.2.2
+langchain-protocol==0.0.15
+langsmith==0.8.5
+openai==2.38.0
+tiktoken==0.13.0
+
+# ── FastAPI and ASGI server ────────────────────────────────────────────────────
+fastapi==0.136.1
+uvicorn[standard]==0.47.0
+starlette==1.0.1
+annotated-doc==0.0.4
+httptools==0.7.1
+watchfiles==1.2.0
+websockets==16.0
+
+# ── Database ───────────────────────────────────────────────────────────────────
+SQLAlchemy==2.0.49
+asyncpg==0.31.0
+alembic==1.18.4
+greenlet==3.5.1
+Mako==1.3.12
+tomli==2.4.1
+
+# ── Redis ─────────────────────────────────────────────────────────────────────
+redis==7.4.0
+hiredis==3.3.1
+
+# ── Authentication ─────────────────────────────────────────────────────────────
+argon2-cffi==25.1.0
+argon2-cffi-bindings==25.1.0
+# PyJWT replaces python-jose (CVE-2024-33664: RSA-key-as-HMAC-secret bypass in python-jose)
+PyJWT==2.10.1
+cryptography==48.0.0
+cffi==2.0.0
+
+# ── Tools ─────────────────────────────────────────────────────────────────────
+simpleeval==1.0.7
+tavily-python==0.7.24
+
+# ── Observability ─────────────────────────────────────────────────────────────
+structlog==25.5.0
+
+# ── Configuration ─────────────────────────────────────────────────────────────
+pydantic==2.13.4
+pydantic-core==2.46.4
+pydantic-settings==2.14.1
+python-dotenv==1.2.2
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest==9.0.3
+pytest-asyncio==1.3.0
+pytest-cov==7.1.0
+httpx==0.28.1
+coverage==7.14.0
+backports.asyncio.runner==1.2.0
+
+# ── Toolchain ─────────────────────────────────────────────────────────────────
+ruff==0.15.14
+mypy==2.1.0
+mypy_extensions==1.1.0
+pathspec==1.1.1
+ast_serialize==0.5.0
+librt==0.11.0
+
+# ── Transitive dependencies (pinned for reproducibility) ─────────────────────
+annotated-types==0.7.0
+anyio==4.13.0
+async-timeout==5.0.1
+certifi==2026.5.20
+charset-normalizer==3.4.7
+click==8.4.1
+colorama==0.4.6
+distro==1.9.0
+exceptiongroup==1.3.1
+h11==0.16.0
+httpcore==1.0.9
+idna==3.16
+iniconfig==2.3.0
+jiter==0.15.0
+jsonpatch==1.33
+jsonpointer==3.1.1
+MarkupSafe==3.0.3
+orjson==3.11.9
+ormsgpack==1.12.2
+packaging==26.0
+pluggy==1.6.0
+psycopg==3.3.4
+psycopg-pool==3.3.1
+pycparser==3.0
+Pygments==2.20.0
+PyYAML==6.0.3
+regex==2026.5.9
+requests==2.34.2
+requests-toolbelt==1.0.0
+sniffio==1.3.1
+tenacity==9.1.4
+tqdm==4.67.3
+typing-extensions==4.15.0
+typing-inspection==0.4.2
+tzdata==2026.2
+urllib3==2.7.0
+uuid_utils==0.16.0
+xxhash==3.7.0
+zstandard==0.25.0

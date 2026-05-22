@@ -20,7 +20,7 @@ Use `@filename` references to target specific files rather than scanning the ent
 
 | Layer | Technology |
 |---|---|
-| Language | Python 3.11 |
+| Language | Python 3.10 |
 | Agent framework | LangGraph |
 | LLM / chain tooling | LangChain |
 | API layer | FastAPI |
@@ -38,7 +38,7 @@ pip install -r requirements.txt
 docker compose up --build
 
 # Start only the FastAPI server (assumes DB and Redis are running)
-uvicorn app.main:app --reload --port 8000
+uvicorn src.api.main:app --reload --port 8000
 
 # Run all tests
 pytest
