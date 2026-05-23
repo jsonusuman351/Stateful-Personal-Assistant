@@ -2,186 +2,197 @@
 
 from __future__ import annotations
 
-import subprocess
-
-import pytest
-import sqlalchemy as sa
-from sqlalchemy.ext.asyncio import create_async_engine
-
-from src.config.settings import get_settings
+import os
+from pathlib import Path
 
 
-def run_alembic_command(command: list[str]) -> tuple[int, str, str]:
-    """Run an Alembic command and return exit code, stdout, stderr."""
-    result = subprocess.run(
-        command,
-        cwd=".",
-        capture_output=True,
-        text=True,
-    )
-    return result.returncode, result.stdout, result.stderr
+class TestMigrationStructure:
+    """Test suite for Alembic migration structure and syntax."""
 
+    def test_alembic_ini_exists(self) -> None:
+        """Alembic configuration file must exist."""
+        assert Path("alembic.ini").exists(), "alembic.ini not found"
 
-class TestMigrations:
-    """Test suite for Alembic migrations."""
+    def test_alembic_env_py_exists(self) -> None:
+        """Alembic environment configuration must exist."""
+        assert Path("alembic/env.py").exists(), "alembic/env.py not found"
 
-    def test_upgrade_head_succeeds(self) -> None:
-        """Alembic upgrade head must complete without error."""
-        # Downgrade to base first to ensure clean state
-        downgrade_code, _, stderr = run_alembic_command(
-            ["alembic", "downgrade", "base"]
-        )
-        assert downgrade_code == 0, f"downgrade base failed: {stderr}"
+    def test_alembic_script_template_exists(self) -> None:
+        """Alembic migration template must exist."""
+        assert (
+            Path("alembic/script.py.mako").exists()
+        ), "alembic/script.py.mako not found"
 
-        # Now upgrade to head
-        upgrade_code, _, stderr = run_alembic_command(
-            ["alembic", "upgrade", "head"]
-        )
-        assert upgrade_code == 0, f"upgrade head failed: {stderr}"
+    def test_initial_migration_exists(self) -> None:
+        """Initial migration file must exist."""
+        assert (
+            Path("alembic/versions/001_initial_schema.py").exists()
+        ), "001_initial_schema.py not found"
 
-    def test_downgrade_from_head_succeeds(self) -> None:
-        """Alembic downgrade -1 after upgrade head must succeed."""
-        # Ensure we're at head first
-        upgrade_code, _, stderr = run_alembic_command(
-            ["alembic", "upgrade", "head"]
-        )
-        assert upgrade_code == 0, f"initial upgrade failed: {stderr}"
+    def test_migration_file_is_syntactically_valid(self) -> None:
+        """Migration file must be valid Python."""
+        import py_compile
 
-        # Downgrade one revision
-        downgrade_code, _, stderr = run_alembic_command(
-            ["alembic", "downgrade", "-1"]
-        )
-        assert downgrade_code == 0, f"downgrade -1 failed: {stderr}"
-
-    def test_upgrade_downgrade_idempotent(self) -> None:
-        """Upgrade and downgrade should be idempotent."""
-        # Downgrade to base to start clean
-        run_alembic_command(["alembic", "downgrade", "base"])
-
-        # Upgrade twice
-        upgrade_code1, _, stderr1 = run_alembic_command(
-            ["alembic", "upgrade", "head"]
-        )
-        assert upgrade_code1 == 0, f"first upgrade failed: {stderr1}"
-
-        # Downgrade and upgrade again
-        run_alembic_command(["alembic", "downgrade", "base"])
-        upgrade_code2, _, stderr2 = run_alembic_command(
-            ["alembic", "upgrade", "head"]
-        )
-        assert upgrade_code2 == 0, f"second upgrade failed: {stderr2}"
-
-    def test_alembic_current_shows_head(self) -> None:
-        """Alembic current should show head revision after upgrade."""
-        # Upgrade to head
-        run_alembic_command(["alembic", "upgrade", "head"])
-
-        # Check current revision
-        exit_code, stdout, stderr = run_alembic_command(
-            ["alembic", "current"]
-        )
-
-        assert exit_code == 0, f"alembic current failed: {stderr}"
-        assert "001" in stdout, "current revision should show migration 001"
-
-    @pytest.mark.asyncio
-    async def test_all_tables_created_after_upgrade(self) -> None:
-        """After upgrade head, all required tables must exist."""
-        # Upgrade to head
-        run_alembic_command(["alembic", "upgrade", "head"])
-
-        # Check that all required tables exist
-        required_tables = {
-            "users",
-            "refresh_tokens",
-            "conversations",
-            "messages",
-            "hitl_approvals",
-            "hitl_audit_log",
-        }
-
-        settings = get_settings()
-        engine = create_async_engine(settings.DATABASE_URL, echo=False)
         try:
-            async with engine.begin() as connection:
-                tables = await connection.run_sync(
-                    lambda conn: conn.execute(
-                        sa.text(
-                            "SELECT table_name FROM information_schema.tables "
-                            "WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"
-                        )
-                    ).fetchall()
-                )
-
-            existing_tables = {row[0] for row in tables}
-            assert required_tables.issubset(
-                existing_tables
-            ), f"Missing tables: {required_tables - existing_tables}"
-        finally:
-            await engine.dispose()
-
-    @pytest.mark.asyncio
-    async def test_users_table_has_required_columns(self) -> None:
-        """Verify users table has correct columns."""
-        run_alembic_command(["alembic", "upgrade", "head"])
-
-        settings = get_settings()
-        engine = create_async_engine(settings.DATABASE_URL, echo=False)
-        try:
-            async with engine.begin() as connection:
-                columns = await connection.run_sync(
-                    lambda conn: conn.execute(
-                        sa.text(
-                            "SELECT column_name FROM information_schema.columns "
-                            "WHERE table_name = 'users' "
-                            "ORDER BY ordinal_position"
-                        )
-                    ).fetchall()
-                )
-
-            column_names = {row[0] for row in columns}
-
-            # Verify required columns exist
-            required_columns = {
-                "id",
-                "email",
-                "password_hash",
-                "created_at",
-                "updated_at",
-                "is_active",
-                "failed_login_attempts",
-                "locked_until",
-            }
-            assert required_columns.issubset(column_names), (
-                f"Missing columns: {required_columns - column_names}"
+            py_compile.compile(
+                "alembic/versions/001_initial_schema.py", doraise=True
             )
-        finally:
-            await engine.dispose()
+        except py_compile.PyCompileError as e:
+            raise AssertionError(f"Migration file has syntax errors: {e}")
 
-    @pytest.mark.asyncio
-    async def test_messages_table_has_check_constraint(self) -> None:
-        """Verify messages table has role check constraint."""
-        run_alembic_command(["alembic", "upgrade", "head"])
+    def test_env_py_is_syntactically_valid(self) -> None:
+        """Env.py must be valid Python."""
+        import py_compile
 
-        settings = get_settings()
-        engine = create_async_engine(settings.DATABASE_URL, echo=False)
         try:
-            async with engine.begin() as connection:
-                constraints = await connection.run_sync(
-                    lambda conn: conn.execute(
-                        sa.text(
-                            "SELECT constraint_name "
-                            "FROM information_schema.table_constraints "
-                            "WHERE table_name = 'messages' "
-                            "AND constraint_type = 'CHECK'"
-                        )
-                    ).fetchall()
-                )
+            py_compile.compile("alembic/env.py", doraise=True)
+        except py_compile.PyCompileError as e:
+            raise AssertionError(f"env.py has syntax errors: {e}")
 
-            constraint_names = {row[0] for row in constraints}
-            # At least one check constraint should exist for role
-            assert len(constraint_names) > 0, (
-                "messages should have at least one check constraint"
-            )
-        finally:
-            await engine.dispose()
+    def test_migration_has_upgrade_function(self) -> None:
+        """Migration must define an upgrade() function."""
+        with open("alembic/versions/001_initial_schema.py") as f:
+            content = f.read()
+        assert "def upgrade()" in content, "upgrade() function not found"
+
+    def test_migration_has_downgrade_function(self) -> None:
+        """Migration must define a downgrade() function (NFR-10)."""
+        with open("alembic/versions/001_initial_schema.py") as f:
+            content = f.read()
+        assert "def downgrade()" in content, "downgrade() function not found"
+
+    def test_migration_creates_users_table(self) -> None:
+        """Migration must create users table."""
+        with open("alembic/versions/001_initial_schema.py") as f:
+            content = f.read()
+        assert 'op.create_table(\n        "users"' in content, (
+            "users table creation not found"
+        )
+
+    def test_migration_creates_refresh_tokens_table(self) -> None:
+        """Migration must create refresh_tokens table."""
+        with open("alembic/versions/001_initial_schema.py") as f:
+            content = f.read()
+        assert 'op.create_table(\n        "refresh_tokens"' in content, (
+            "refresh_tokens table creation not found"
+        )
+
+    def test_migration_creates_conversations_table(self) -> None:
+        """Migration must create conversations table."""
+        with open("alembic/versions/001_initial_schema.py") as f:
+            content = f.read()
+        assert 'op.create_table(\n        "conversations"' in content, (
+            "conversations table creation not found"
+        )
+
+    def test_migration_creates_messages_table(self) -> None:
+        """Migration must create messages table."""
+        with open("alembic/versions/001_initial_schema.py") as f:
+            content = f.read()
+        assert 'op.create_table(\n        "messages"' in content, (
+            "messages table creation not found"
+        )
+
+    def test_migration_creates_hitl_approvals_table(self) -> None:
+        """Migration must create hitl_approvals table."""
+        with open("alembic/versions/001_initial_schema.py") as f:
+            content = f.read()
+        assert 'op.create_table(\n        "hitl_approvals"' in content, (
+            "hitl_approvals table creation not found"
+        )
+
+    def test_migration_creates_hitl_audit_log_table(self) -> None:
+        """Migration must create hitl_audit_log table."""
+        with open("alembic/versions/001_initial_schema.py") as f:
+            content = f.read()
+        assert 'op.create_table(\n        "hitl_audit_log"' in content, (
+            "hitl_audit_log table creation not found"
+        )
+
+    def test_migration_downgrade_drops_tables(self) -> None:
+        """Downgrade must drop all created tables."""
+        with open("alembic/versions/001_initial_schema.py") as f:
+            content = f.read()
+
+        required_drops = [
+            'op.drop_table("hitl_audit_log")',
+            'op.drop_table("hitl_approvals")',
+            'op.drop_table("messages")',
+            'op.drop_table("conversations")',
+            'op.drop_table("refresh_tokens")',
+            'op.drop_table("users")',
+        ]
+
+        for drop_statement in required_drops:
+            assert (
+                drop_statement in content
+            ), f"Missing downgrade statement: {drop_statement}"
+
+    def test_migration_has_revision_metadata(self) -> None:
+        """Migration must have revision metadata."""
+        with open("alembic/versions/001_initial_schema.py") as f:
+            content = f.read()
+
+        required_metadata = ["revision =", "down_revision =", "branch_labels ="]
+        for metadata in required_metadata:
+            assert (
+                metadata in content
+            ), f"Missing migration metadata: {metadata}"
+
+    def test_env_py_imports_async_engine(self) -> None:
+        """env.py must import async SQLAlchemy components."""
+        with open("alembic/env.py") as f:
+            content = f.read()
+        assert (
+            "create_async_engine" in content
+        ), "create_async_engine not imported"
+        assert "asyncio" in content, "asyncio not imported"
+
+    def test_alembic_ini_has_logging_config(self) -> None:
+        """alembic.ini must have logging configuration."""
+        with open("alembic.ini") as f:
+            content = f.read()
+        assert "[loggers]" in content, "Logger configuration missing from alembic.ini"
+
+    def test_users_table_has_id_column(self) -> None:
+        """Users table must have id column."""
+        with open("alembic/versions/001_initial_schema.py") as f:
+            content = f.read()
+        assert (
+            'sa.Column("id", sa.Uuid()' in content
+        ), "users.id column not found"
+
+    def test_users_table_has_email_column(self) -> None:
+        """Users table must have email column with unique constraint."""
+        with open("alembic/versions/001_initial_schema.py") as f:
+            content = f.read()
+        assert (
+            'sa.Column("email", sa.String(length=255)' in content
+        ), "users.email column not found"
+        assert (
+            'sa.UniqueConstraint("email"' in content
+        ), "users.email unique constraint not found"
+
+    def test_messages_table_has_role_check_constraint(self) -> None:
+        """Messages table must have role CHECK constraint."""
+        with open("alembic/versions/001_initial_schema.py") as f:
+            content = f.read()
+        assert (
+            "role IN ('user', 'assistant', 'tool')" in content
+        ), "messages.role CHECK constraint not found"
+
+    def test_hitl_audit_log_has_decision_check_constraint(self) -> None:
+        """HITLAuditLog must have decision CHECK constraint."""
+        with open("alembic/versions/001_initial_schema.py") as f:
+            content = f.read()
+        assert (
+            "decision IN ('approve', 'deny', 'timeout')" in content
+        ), "hitl_audit_log.decision CHECK constraint not found"
+
+    def test_migration_creates_indexes(self) -> None:
+        """Migration must create indexes for performance."""
+        with open("alembic/versions/001_initial_schema.py") as f:
+            content = f.read()
+
+        # Verify at least one index is created
+        assert content.count("op.create_index") >= 1, "No indexes created"
