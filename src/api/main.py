@@ -51,6 +51,32 @@ async def _hitl_timeout_sweeper() -> None:
         await asyncio.sleep(60)
 
 
+async def _conversation_retention_job() -> None:
+    """Background task: daily purge of low-engagement stale conversations.
+
+    Deletes conversations where last_accessed < NOW() - 90 days AND
+    access_count < 5, skipping any with open HITL approvals (FR-22,
+    REVIEW-31). Uses FOR UPDATE SKIP LOCKED so live sessions are never
+    blocked (FR-22).
+
+    asyncio.CancelledError propagates through the bare ``except Exception``
+    handler, allowing clean shutdown without dangling DB connections (NFR-9).
+    """
+    from src.persistence.database import get_db_session
+    from src.persistence.repositories.conversation_repo import ConversationRepository
+
+    while True:
+        try:
+            async with get_db_session() as session:
+                repo = ConversationRepository(session)
+                count = await repo.delete_stale_conversations()
+                if count:
+                    logger.info("Retention job purged %d conversation(s)", count)
+        except Exception as exc:
+            logger.error("Conversation retention job error: %s", exc)
+        await asyncio.sleep(86400)  # daily
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """App startup and shutdown lifecycle hook.
@@ -116,17 +142,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     sweeper = asyncio.create_task(
         _hitl_timeout_sweeper(), name="hitl-timeout-sweeper"
     )
+    retention = asyncio.create_task(
+        _conversation_retention_job(), name="conversation-retention"
+    )
 
     yield
 
     # ── Graceful shutdown ─────────────────────────────────────────────────────
     # Cancel background tasks first so they release DB connections before
     # the pool is disposed (NFR-9).
-    sweeper.cancel()
-    try:
-        await sweeper
-    except asyncio.CancelledError:
-        pass
+    for task in (sweeper, retention):
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
     try:
         await get_engine().dispose()

@@ -1173,7 +1173,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-046: Conversation retention background job
+### T-046: Conversation retention background job ✅
 
 **Description:** Implement the daily retention job that purges low-engagement conversations older than 90 days. Uses `FOR UPDATE SKIP LOCKED` for atomic deletion. Skips conversations with open HITL approvals (FR-22, DESIGN REVIEW-31).
 

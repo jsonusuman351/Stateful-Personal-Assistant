@@ -8,13 +8,14 @@ or string concatenation (NFR-13).
 from __future__ import annotations
 
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.persistence.models.conversation import Conversation
+from src.persistence.models.hitl import HITLApproval
 
 
 class ConversationRepository:
@@ -182,3 +183,43 @@ class ConversationRepository:
             )
         )
         await self._session.execute(stmt)
+
+    async def delete_stale_conversations(self) -> int:
+        """Delete conversations idle for 90+ days with fewer than 5 accesses.
+
+        Uses a two-step SELECT ... FOR UPDATE SKIP LOCKED + DELETE so that rows
+        held by active requests are skipped rather than blocked (FR-22).
+        Conversations with any open HITL approval (used=FALSE AND expired=FALSE)
+        are excluded regardless of age (FR-22, REVIEW-31 fix).
+
+        Returns:
+            Number of conversations deleted.
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(days=90)
+
+        open_hitl = (
+            select(HITLApproval.conversation_id).where(
+                HITLApproval.used.is_(False),
+                HITLApproval.expired.is_(False),
+            )
+        )
+
+        select_stmt = (
+            select(Conversation.id)
+            .where(
+                Conversation.last_accessed < cutoff,
+                Conversation.access_count < 5,
+                ~Conversation.id.in_(open_hitl),
+            )
+            .with_for_update(skip_locked=True)
+        )
+
+        result = await self._session.execute(select_stmt)
+        ids = list(result.scalars())
+
+        if not ids:
+            return 0
+
+        del_stmt = delete(Conversation).where(Conversation.id.in_(ids))
+        del_result = await self._session.execute(del_stmt)
+        return del_result.rowcount
