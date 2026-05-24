@@ -156,6 +156,22 @@ class HITLRepository:
         self._session.add(entry)
         await self._session.flush()
 
+    async def get_approval(self, approval_id: UUID) -> HITLApproval | None:
+        """Fetch an approval row by ID regardless of its state.
+
+        Used by the sessions router to distinguish 409 (concurrent race) from
+        410 (already used/expired) before calling the atomic consume_approval.
+
+        Args:
+            approval_id: The approval UUID to look up.
+
+        Returns:
+            HITLApproval if found, None if the ID does not exist.
+        """
+        stmt = select(HITLApproval).where(HITLApproval.id == approval_id)
+        result = await self._session.execute(stmt)
+        return result.scalars().one_or_none()
+
     async def get_open_approval_ids_for_conversation(
         self, conversation_id: UUID
     ) -> list[UUID]:
