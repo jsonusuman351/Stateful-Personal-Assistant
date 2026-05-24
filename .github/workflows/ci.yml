@@ -1,0 +1,170 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Stage 1: Lint ────────────────────────────────────────────────────────────
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install ruff
+        run: pip install ruff==0.15.14
+
+      - name: Lint
+        run: ruff check .
+
+  # ── Stage 2: Type-check ──────────────────────────────────────────────────────
+  typecheck:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Type-check (mypy --strict)
+        run: mypy .
+
+  # ── Stage 3: Secrets scan ────────────────────────────────────────────────────
+  secrets-scan:
+    runs-on: ubuntu-latest
+    needs: typecheck
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install detect-secrets
+        run: pip install detect-secrets==1.5.0
+
+      - name: Scan for secrets
+        # Runs a fresh scan and compares against the committed baseline.
+        # Any new potential secret beyond the baseline causes a non-zero exit.
+        run: |
+          detect-secrets scan --baseline .secrets.baseline
+          git diff --exit-code .secrets.baseline
+
+  # ── Stage 4: Tests ───────────────────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    needs: secrets-scan
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: assistant_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d assistant_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 10s
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests with coverage
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/assistant_test
+          TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/assistant_test
+          REDIS_URL: redis://localhost:6379/0
+          # Fall back to zero-entropy placeholders for fork PRs that lack secrets.
+          # Unit tests set their own env vars via monkeypatch; these only satisfy
+          # the settings.py ValidationError guard before test collection begins.
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'ci-dummy-not-a-real-key' }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }}  # pragma: allowlist secret
+          JWT_ISSUER: stateful-assistant
+          JWT_AUDIENCE: stateful-assistant-users
+        run: pytest --cov=src --cov-report=xml -q
+
+  # ── Stage 5: Migrations ──────────────────────────────────────────────────────
+  migrations:
+    runs-on: ubuntu-latest
+    needs: test
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: assistant_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d assistant_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 10s
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Alembic migrations (upgrade + downgrade)
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/assistant_test
+          # REDIS_URL and OPENAI_API_KEY are required by settings.py validation even
+          # though alembic only uses DATABASE_URL; provide harmless placeholders.
+          REDIS_URL: redis://localhost:6379/0
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'ci-dummy-not-a-real-key' }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }}  # pragma: allowlist secret
+          JWT_ISSUER: stateful-assistant
+          JWT_AUDIENCE: stateful-assistant-users
+        run: |
+          alembic upgrade head
+          alembic downgrade -1
+
+  # ── Deploy to Render (main only) ─────────────────────────────────────────────
+  deploy:
+    runs-on: ubuntu-latest
+    needs: migrations
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger Render deploy hook
+        run: curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"

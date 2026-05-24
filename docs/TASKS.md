@@ -1128,7 +1128,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-044: GitHub Actions CI pipeline
+### T-044: GitHub Actions CI pipeline ✅
 
 **Description:** Write the CI workflow that runs lint, type-check, secrets scan, migrations, and tests on every push to `main` and on every PR. Deployment to Render is gated on all stages (G-7, SC-9, NFR-12).
 

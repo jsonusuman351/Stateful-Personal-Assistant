@@ -118,7 +118,7 @@ class TestSensitiveKeyRedaction:
     def test_password_redacted(self, capture_logs: StringIO) -> None:
         """Passwords must be redacted in logs."""
         logger = structlog.get_logger()
-        logger.info("user_created", password="super_secret_123")
+        logger.info("user_created", password="super_secret_123")  # pragma: allowlist secret
 
         output = capture_logs.getvalue()
         parsed = json.loads(output.strip())
@@ -128,7 +128,7 @@ class TestSensitiveKeyRedaction:
     def test_token_redacted(self, capture_logs: StringIO) -> None:
         """Tokens must be redacted in logs."""
         logger = structlog.get_logger()
-        logger.info("auth_token_issued", refresh_token="eyJ0eXAi...")
+        logger.info("auth_token_issued", refresh_token="eyJ0eXAi...")  # pragma: allowlist secret
 
         output = capture_logs.getvalue()
         parsed = json.loads(output.strip())
@@ -138,7 +138,7 @@ class TestSensitiveKeyRedaction:
     def test_api_key_redacted(self, capture_logs: StringIO) -> None:
         """API keys must be redacted in logs."""
         logger = structlog.get_logger()
-        logger.info("openai_call", openai_api_key="sk-...")
+        logger.info("openai_call", openai_api_key="sk-...")  # pragma: allowlist secret
 
         output = capture_logs.getvalue()
         parsed = json.loads(output.strip())
