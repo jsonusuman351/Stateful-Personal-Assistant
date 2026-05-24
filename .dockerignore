@@ -1,0 +1,54 @@
+# ── Secrets — must never reach the Docker build daemon ───────────────────────
+.env
+.env.*
+*.env
+secrets/
+
+# ── Version control ───────────────────────────────────────────────────────────
+.git/
+.gitignore
+.github/
+
+# ── Python bytecode and caches ────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.whl
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# ── Local virtual environments ────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Dev tooling caches ────────────────────────────────────────────────────────
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# ── Tests and docs (not needed at runtime) ────────────────────────────────────
+tests/
+docs/
+
+# ── IDE files ─────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+.DS_Store
+
+# ── Claude Code project files ─────────────────────────────────────────────────
+.claude/
+.claudeignore
+CLAUDE.md
+graphify-out/

@@ -1,0 +1,67 @@
+services:
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: assistant
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d assistant"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  # ── Redis ─────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  # ── FastAPI application ───────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Load .env for OPENAI_API_KEY, JWT_SECRET, TAVILY_API_KEY, etc.
+    # Run: cp .env.example .env  and fill in real values before docker compose up.
+    env_file:
+      - .env
+    environment:
+      # Override the localhost URLs from .env with Docker service-name URLs.
+      # These two variables are the only ones that differ inside the compose network.
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/assistant
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Healthcheck against /readiness validates DB + Redis + Alembic revision.
+    # python -c is used instead of curl because curl is not installed in the
+    # slim runtime image; urllib.request is always available.
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/readiness', timeout=5)\""
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

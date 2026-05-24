@@ -887,11 +887,13 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-## Phase 8 — API Layer
+## Phase 8 — API Layer ✅
+
+> **Complete** — all 8 tasks shipped in commit `c86ec42` (2026-05-24). 37/37 tests pass.
 
 ---
 
-### T-035: FastAPI app factory and lifespan
+### T-035: FastAPI app factory and lifespan ✅
 
 **Description:** Implement `api/main.py` with `create_app()`. The lifespan hook must run Alembic migrations, set up the checkpointer, initialise the tool registry, configure logging, and wire CORS. Graceful shutdown (NFR-9, NFR-10).
 
@@ -917,7 +919,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-036: Request middleware (logging, sanitisation, timing)
+### T-036: Request middleware (logging, sanitisation, timing) ✅
 
 **Description:** Implement `api/middleware.py` with a Starlette middleware that: generates `request_id`, binds structlog context, sanitises all string fields in request bodies, records latency, and logs the structured request line (NFR-15, NFR-18, DESIGN §9.6).
 
@@ -939,7 +941,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-037: FastAPI dependency injection
+### T-037: FastAPI dependency injection ✅
 
 **Description:** Implement `api/dependencies.py` with `get_current_user`, `require_auth_user`, `get_db`, and `get_redis`. JWT validation, blacklist check, and `iss`/`aud` verification happen here (DESIGN §9.2).
 
@@ -964,7 +966,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-038: Auth router (`/auth/guest`, `/auth/login`, `/auth/refresh`, `/auth/logout`)
+### T-038: Auth router (`/auth/guest`, `/auth/login`, `/auth/refresh`, `/auth/logout`) ✅
 
 **Description:** Implement all four auth endpoints in `api/routers/auth.py`. Login must apply rate limiting, brute-force lockout, constant-time hash comparison, and token rotation on refresh (FR-15, FR-16, FR-30).
 
@@ -993,7 +995,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-039: Chat router (`POST /chat`, `GET /chat/stream`)
+### T-039: Chat router (`POST /chat`, `GET /chat/stream`) ✅
 
 **Description:** Implement the two-step SSE handshake in `api/routers/chat.py`. `POST /chat` validates quota and returns HTTP 202 with `stream_url`; `GET /chat/stream` opens the SSE response and calls `run_turn` (FR-12, FR-13, FR-26).
 
@@ -1020,7 +1022,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-040: Sessions router (`GET /sessions`, `GET /sessions/{id}/messages`, `DELETE /sessions/{id}`, `POST /sessions/{id}/approve`, `POST /sessions/{id}/model`)
+### T-040: Sessions router (`GET /sessions`, `GET /sessions/{id}/messages`, `DELETE /sessions/{id}`, `POST /sessions/{id}/approve`, `POST /sessions/{id}/model`) ✅
 
 **Description:** Implement all session management and HITL approval endpoints in `api/routers/sessions.py`. Enforce data isolation on every operation (FR-17, FR-19, FR-20, FR-10, FR-25).
 
@@ -1050,7 +1052,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-041: Tools router (`GET /tools`) and health router (`GET /health`, `GET /readiness`)
+### T-041: Tools router (`GET /tools`) and health router (`GET /health`, `GET /readiness`) ✅
 
 **Description:** Implement `api/routers/tools.py` and `api/routers/health.py`. `/tools` returns the registered tool list; `/readiness` checks PostgreSQL, Redis, and Alembic revision (FR-33, DESIGN §6.4, §6.5, SPEC §12.20).
 
@@ -1077,7 +1079,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-042: Standardised error response schema
+### T-042: Standardised error response schema ✅
 
 **Description:** Implement a FastAPI exception handler that maps all non-SSE errors to the standard `{"error": {code, message, retryable, retry_after_seconds}}` schema. No endpoint may return a bare HTTP error (FR-29).
 
@@ -1105,7 +1107,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-043: Docker and Docker Compose for local development
+### T-043: Docker and Docker Compose for local development ✅
 
 **Description:** Write a multi-stage `Dockerfile` and `docker-compose.yml` that bring up FastAPI + PostgreSQL + Redis as a single `docker compose up --build` command.
 

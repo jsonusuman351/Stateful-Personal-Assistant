@@ -50,8 +50,6 @@ coverage.xml
 logs/
 *.log
 
-# Docker
-.dockerignore
 
 # Build artifacts
 graphify-out/
