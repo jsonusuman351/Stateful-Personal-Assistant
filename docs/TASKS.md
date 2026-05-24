@@ -1149,7 +1149,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-045: HITL timeout background task
+### T-045: HITL timeout background task ✅
 
 **Description:** Implement the HITL timeout sweeper as an `asyncio` background task started in the app lifespan. Marks expired approvals, emits timeout audit log entries, and is safe to run concurrently (FR-11, FR-32).
 

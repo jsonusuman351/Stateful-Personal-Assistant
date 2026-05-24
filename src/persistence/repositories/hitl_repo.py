@@ -97,14 +97,15 @@ class HITLRepository:
         result = await self._session.execute(stmt)
         return result.scalars().one_or_none()
 
-    async def expire_stale_approvals(self) -> list[UUID]:
+    async def expire_stale_approvals(self) -> list[HITLApproval]:
         """Mark all un-consumed, past-deadline approvals as expired.
 
-        Returns the list of IDs just expired; used by the retention job
-        (T-045) to append audit log timeout entries.
+        Returns the full HITLApproval objects just expired so that the HITL
+        timeout sweeper (T-045) has all fields needed to insert audit log
+        entries (conversation_id, user_id, tool_name) without extra queries.
 
         Returns:
-            List of approval UUIDs transitioned to expired=True.
+            List of HITLApproval objects transitioned to expired=True.
         """
         now = datetime.now(timezone.utc)
         stmt = (
@@ -115,7 +116,7 @@ class HITLRepository:
                 HITLApproval.expired.is_(False),
             )
             .values(expired=True)
-            .returning(HITLApproval.id)
+            .returning(HITLApproval)
         )
         result = await self._session.execute(stmt)
         return list(result.scalars())

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sys
 from contextlib import asynccontextmanager
@@ -12,6 +13,42 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 logger = logging.getLogger(__name__)
+
+
+async def _hitl_timeout_sweeper() -> None:
+    """Background task: expire stale HITL approvals and write audit log entries.
+
+    Runs every 60 seconds. On each sweep it:
+    1. Bulk-updates HITLApprovals where expires_at < NOW() and used=FALSE → expired=TRUE.
+    2. Inserts one HITLAuditLog row (decision='timeout') for each newly expired approval.
+
+    asyncio.CancelledError is a BaseException (not Exception) so it propagates
+    through the bare ``except Exception`` handler, letting the task cancel cleanly
+    on SIGTERM without leaving dangling DB connections (NFR-9).
+    """
+    from src.persistence.database import get_db_session
+    from src.persistence.repositories.hitl_repo import HITLRepository
+
+    while True:
+        try:
+            async with get_db_session() as session:
+                repo = HITLRepository(session)
+                expired = await repo.expire_stale_approvals()
+                for approval in expired:
+                    await repo.insert_audit_log(
+                        approval_id=approval.id,
+                        user_id=approval.user_id,
+                        conversation_id=approval.conversation_id,
+                        tool_name=approval.tool_name,
+                        decision="timeout",
+                        request_ip=None,
+                        decision_reason=None,
+                    )
+                if expired:
+                    logger.info("HITL sweeper expired %d approval(s)", len(expired))
+        except Exception as exc:
+            logger.error("HITL timeout sweeper error: %s", exc)
+        await asyncio.sleep(60)
 
 
 @asynccontextmanager
@@ -75,9 +112,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     app.state.ready = True
 
+    # 4. Background tasks — started after ready so they can use DB/Redis
+    sweeper = asyncio.create_task(
+        _hitl_timeout_sweeper(), name="hitl-timeout-sweeper"
+    )
+
     yield
 
     # ── Graceful shutdown ─────────────────────────────────────────────────────
+    # Cancel background tasks first so they release DB connections before
+    # the pool is disposed (NFR-9).
+    sweeper.cancel()
+    try:
+        await sweeper
+    except asyncio.CancelledError:
+        pass
+
     try:
         await get_engine().dispose()
     except Exception as exc:
