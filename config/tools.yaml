@@ -1,0 +1,7 @@
+tools:
+  calculator:
+    class: src.tools.calculator.CalculatorTool
+  weather:
+    class: src.tools.weather.WeatherTool
+  web_search:
+    class: src.tools.web_search.WebSearchTool
