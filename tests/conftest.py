@@ -283,7 +283,12 @@ async def async_client(
 
     async def _test_get_db() -> AsyncGenerator[AsyncSession, None]:
         async with AsyncSession(db_engine, expire_on_commit=False) as session:
-            yield session
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
 
     app.dependency_overrides[get_db] = _test_get_db
 
