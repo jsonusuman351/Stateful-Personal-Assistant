@@ -63,6 +63,11 @@ def load_registry(config_path: Path | str) -> dict[str, BaseTool]:
     return _registry
 
 
+def get_registry() -> dict[str, BaseTool]:
+    """Return the loaded tool registry (module-level singleton after load_registry())."""
+    return _registry
+
+
 def get_tool_list() -> list[dict[str, Any]]:
     """Return a public-safe list of registered tools for ``GET /tools``.
 
