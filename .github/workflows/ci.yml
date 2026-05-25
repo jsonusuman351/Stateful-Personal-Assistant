@@ -121,7 +121,7 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }}  # pragma: allowlist secret
           JWT_ISSUER: stateful-assistant
           JWT_AUDIENCE: stateful-assistant-users
-        run: pytest --cov=src --cov-report=xml -q
+        run: pytest --cov=src --cov-report=xml --tb=short -q
 
   # ── Stage 5: Migrations ──────────────────────────────────────────────────────
   migrations:
