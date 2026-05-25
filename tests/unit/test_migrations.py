@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 
@@ -38,7 +37,7 @@ class TestMigrationStructure:
                 "alembic/versions/001_initial_schema.py", doraise=True
             )
         except py_compile.PyCompileError as e:
-            raise AssertionError(f"Migration file has syntax errors: {e}")
+            raise AssertionError(f"Migration file has syntax errors: {e}") from e
 
     def test_env_py_is_syntactically_valid(self) -> None:
         """Env.py must be valid Python."""
@@ -47,7 +46,7 @@ class TestMigrationStructure:
         try:
             py_compile.compile("alembic/env.py", doraise=True)
         except py_compile.PyCompileError as e:
-            raise AssertionError(f"env.py has syntax errors: {e}")
+            raise AssertionError(f"env.py has syntax errors: {e}") from e
 
     def test_migration_has_upgrade_function(self) -> None:
         """Migration must define an upgrade() function."""
