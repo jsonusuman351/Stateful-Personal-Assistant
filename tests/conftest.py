@@ -26,7 +26,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 import src.persistence.redis_client as _rc_module
-from src.persistence.models.base import Base
+from src.persistence.models import Base  # registers all ORM models with Base.metadata
 
 # ── Environment defaults for the test app ────────────────────────────────────
 

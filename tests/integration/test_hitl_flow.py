@@ -246,7 +246,10 @@ async def test_checkpoint_committed_before_sse(
     )
 
     approval_events = [e for e in events if e["event"] == "approval_required"]
-    assert approval_events, f"No approval_required event. Events: {[e['event'] for e in events]}"
+    error_evt = next((e.get("data") for e in events if e["event"] == "error"), None)
+    assert approval_events, (
+        f"No approval_required. types={[e['event'] for e in events]} err={error_evt}"
+    )
 
     payload: dict[str, Any] = approval_events[0]["data"]
     assert "approval_id" in payload, "approval_required payload missing approval_id"
@@ -277,7 +280,10 @@ async def test_approve_resumes_graph(
     )
 
     approval_events = [e for e in events if e["event"] == "approval_required"]
-    assert approval_events, "No approval_required event — HITL flow did not trigger"
+    error_evt = next((e.get("data") for e in events if e["event"] == "error"), None)
+    assert approval_events, (
+        f"No approval_required. types={[e['event'] for e in events]} err={error_evt}"
+    )
     approval_id: str = approval_events[0]["data"]["approval_id"]
     initial_count = len(events)
 
@@ -314,7 +320,10 @@ async def test_deny_routes_to_error_handler(
     )
 
     approval_events = [e for e in events if e["event"] == "approval_required"]
-    assert approval_events, "No approval_required event — HITL flow did not trigger"
+    error_evt = next((e.get("data") for e in events if e["event"] == "error"), None)
+    assert approval_events, (
+        f"No approval_required. types={[e['event'] for e in events]} err={error_evt}"
+    )
     approval_id: str = approval_events[0]["data"]["approval_id"]
     initial_count = len(events)
 
@@ -448,7 +457,10 @@ async def test_replay_buffer_alive_at_8min(
     )
 
     approval_events = [e for e in events if e["event"] == "approval_required"]
-    assert approval_events, "No approval_required event — HITL TTL was not applied"
+    error_evt = next((e.get("data") for e in events if e["event"] == "error"), None)
+    assert approval_events, (
+        f"No approval_required. types={[e['event'] for e in events]} err={error_evt}"
+    )
 
     key = f"stream:{stream_id}:events"
     ttl: int = await redis_client.ttl(key)
