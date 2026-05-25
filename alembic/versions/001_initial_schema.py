@@ -88,7 +88,6 @@ def upgrade() -> None:
         "conversations",
         ["last_accessed", "access_count"],
         unique=False,
-        postgresql_where=sa.text("last_accessed < NOW() - INTERVAL '60 days'"),
     )
 
     # Create messages table
