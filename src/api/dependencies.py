@@ -51,8 +51,8 @@ async def get_current_user(
 
     try:
         claims = decode_token(credentials.credentials)
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    except JWTError as err:
+        raise HTTPException(status_code=401, detail="Invalid or expired token") from err
 
     jti = claims.get("jti", "")
     if jti and await is_blacklisted(jti):
