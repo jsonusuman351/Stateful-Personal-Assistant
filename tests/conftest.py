@@ -239,33 +239,30 @@ async def async_client(
 
     get_settings.cache_clear()
 
-    # ── Test lifespan: skip migrations, use MemorySaver checkpointer ─────────
+    # httpx.AsyncClient with ASGITransport does NOT fire ASGI lifespan events,
+    # so we must set up the checkpointer and tool registry directly here rather
+    # than inside a lifespan hook that would never be called.
+    from langgraph.checkpoint.memory import MemorySaver
 
+    import src.persistence.checkpointer as cp_module
+    from src.agents.graph import get_graph
+    from src.tools.registry import load_registry
+
+    registry_path = Path(__file__).resolve().parent.parent / "config" / "tools.yaml"
+    if registry_path.exists():
+        load_registry(registry_path)
+
+    get_graph.cache_clear()
+    cp_module._checkpointer = MemorySaver()  # type: ignore[assignment]
+    cp_module._setup_done = True
+
+    # Minimal lifespan — patches out Alembic migrations; checkpointer is already
+    # set above because httpx never calls this.
     @asynccontextmanager
     async def _test_lifespan(app: Any) -> AsyncGenerator[None, None]:
         """Minimal lifespan for integration tests."""
-        from langgraph.checkpoint.memory import MemorySaver
-
-        import src.persistence.checkpointer as cp_module
-        from src.agents.graph import get_graph
-        from src.tools.registry import load_registry
-
-        registry_path = Path(__file__).resolve().parent.parent / "config" / "tools.yaml"
-        if registry_path.exists():
-            load_registry(registry_path)
-
-        # Use in-memory checkpointer so tests don't need the psycopg3/libpq chain
-        get_graph.cache_clear()
-        cp_module._checkpointer = MemorySaver()  # type: ignore[assignment]
-        cp_module._setup_done = True
         app.state.ready = True
-
         yield
-
-        # Teardown: clear singletons so the next test gets a fresh graph
-        get_graph.cache_clear()
-        cp_module._checkpointer = None
-        cp_module._setup_done = False
 
     # Patch the module-level lifespan *before* create_app() references it
     monkeypatch.setattr(_main_module, "lifespan", _test_lifespan)
@@ -288,9 +285,13 @@ async def async_client(
 
     app.dependency_overrides[get_db] = _test_get_db
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        yield client
-
-    # Clean up
-    app.dependency_overrides.clear()
-    get_settings.cache_clear()
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            yield client
+    finally:
+        # Clear singletons so the next test gets a fresh graph
+        get_graph.cache_clear()
+        cp_module._checkpointer = None
+        cp_module._setup_done = False
+        app.dependency_overrides.clear()
+        get_settings.cache_clear()

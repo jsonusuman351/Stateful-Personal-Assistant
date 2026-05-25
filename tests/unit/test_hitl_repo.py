@@ -141,13 +141,13 @@ class TestExpireStaleApprovals:
     async def test_expire_stale_returns_ids(
         self, repo: HITLRepository, db_session: AsyncSession
     ) -> None:
-        """expire_stale_approvals returns UUIDs of approvals that were just expired."""
+        """expire_stale_approvals returns HITLApproval objects for just-expired rows."""
         past = datetime.now(timezone.utc) - timedelta(minutes=5)
         approval = await _make_approval(db_session, expires_at=past)
 
-        expired_ids = await repo.expire_stale_approvals()
+        expired = await repo.expire_stale_approvals()
 
-        assert approval.id in expired_ids
+        assert approval.id in {a.id for a in expired}
 
     async def test_expire_stale_skips_used(
         self, repo: HITLRepository, db_session: AsyncSession
@@ -156,9 +156,9 @@ class TestExpireStaleApprovals:
         past = datetime.now(timezone.utc) - timedelta(minutes=5)
         approval = await _make_approval(db_session, used=True, expires_at=past)
 
-        expired_ids = await repo.expire_stale_approvals()
+        expired = await repo.expire_stale_approvals()
 
-        assert approval.id not in expired_ids
+        assert approval.id not in {a.id for a in expired}
 
     async def test_expire_stale_skips_future(
         self, repo: HITLRepository, db_session: AsyncSession
@@ -167,9 +167,9 @@ class TestExpireStaleApprovals:
         future = datetime.now(timezone.utc) + timedelta(minutes=5)
         approval = await _make_approval(db_session, expires_at=future)
 
-        expired_ids = await repo.expire_stale_approvals()
+        expired = await repo.expire_stale_approvals()
 
-        assert approval.id not in expired_ids
+        assert approval.id not in {a.id for a in expired}
 
 
 class TestInsertAuditLog:

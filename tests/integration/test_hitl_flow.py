@@ -363,8 +363,15 @@ async def test_concurrent_approve_409(
     )
 
     statuses = sorted([resp1.status_code, resp2.status_code])
-    assert statuses == [200, 409], (
-        f"Expected [200, 409], got {statuses}. Bodies: {resp1.text!r}, {resp2.text!r}"
+    # One request must succeed (200).  The other is either 409 (concurrent race —
+    # both pre-checks passed before either consume committed) or 410 (sequential
+    # — the first consume finished before the second pre-check ran).  Both are
+    # correct outcomes; which one occurs depends on asyncio scheduling.
+    assert statuses[0] == 200, (
+        f"Expected one 200, got {statuses}. Bodies: {resp1.text!r}, {resp2.text!r}"
+    )
+    assert statuses[1] in (409, 410), (
+        f"Expected 409 or 410 for duplicate, got {statuses}. Bodies: {resp1.text!r}, {resp2.text!r}"
     )
 
 
