@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 _REQUIRED_ENV: dict[str, str] = {
-    "OPENAI_API_KEY": "sk-test",
+    "OPENAI_API_KEY": "sk-test",  # pragma: allowlist secret
     "DATABASE_URL": "postgresql+asyncpg://u:p@localhost/db",
     "REDIS_URL": "redis://localhost:6379/0",
     "JWT_SECRET": "a" * 32,
@@ -153,7 +153,7 @@ async def test_login_success() -> None:
     from src.auth.password import hash_password
 
     user_id = uuid.uuid4()
-    password = "correct-password"
+    password = "correct-password"  # pragma: allowlist secret
     hashed = hash_password(password)
 
     mock_user = MagicMock()
@@ -218,7 +218,7 @@ async def test_login_invalid_password_identical_response() -> None:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp_bad_pass = await c.post(
                 "/auth/login",
-                json={"email": "user@example.com", "password": "wrong-password"},
+                json={"email": "user@example.com", "password": "wrong-password"},  # pragma: allowlist secret
             )
 
     # Unknown email path (get_user_by_email returns None)
@@ -235,7 +235,7 @@ async def test_login_invalid_password_identical_response() -> None:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp_bad_email = await c.post(
                 "/auth/login",
-                json={"email": "nonexistent@example.com", "password": "any"},
+                json={"email": "nonexistent@example.com", "password": "any"},  # pragma: allowlist secret
             )
 
     assert resp_bad_pass.status_code == 401

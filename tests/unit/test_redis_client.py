@@ -13,8 +13,8 @@ from src.persistence.redis_client import close_redis, create_redis_pool, get_red
 
 # Minimal env vars that satisfy all required Settings fields.
 _REQUIRED_ENV: dict[str, str] = {
-    "OPENAI_API_KEY": "sk-test-key",
-    "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/testdb",
+    "OPENAI_API_KEY": "sk-test-key",  # pragma: allowlist secret
+    "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/testdb",  # pragma: allowlist secret
     "REDIS_URL": "redis://localhost:6379/0",
     "JWT_SECRET": "a" * 32,
     "JWT_ISSUER": "stateful-assistant",

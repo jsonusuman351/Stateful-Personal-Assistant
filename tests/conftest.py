@@ -6,7 +6,7 @@ higher-level ``async_client`` fixture which bundles them together.
 
 Environment variables required for DB-backed tests:
     TEST_DATABASE_URL — async-compatible PostgreSQL URL, e.g.
-        ``postgresql+asyncpg://user:pass@localhost/test_db``
+        ``postgresql+asyncpg://user:pass@localhost/test_db``  # pragma: allowlist secret
 
 Environment variables required for Redis-backed tests (optional; defaults
 to ``redis://localhost:6379/15``):
@@ -31,14 +31,14 @@ from src.persistence.models.base import Base
 # ── Environment defaults for the test app ────────────────────────────────────
 
 _BASE_TEST_ENV: dict[str, str] = {
-    "OPENAI_API_KEY": "sk-test-key-for-tests-only",
+    "OPENAI_API_KEY": "sk-test-key-for-tests-only",  # pragma: allowlist secret
     "REDIS_URL": "redis://localhost:6379/15",
-    "JWT_SECRET": "testsecret1testsecret2testsecret3",  # >= 32 chars
+    "JWT_SECRET": "testsecret1testsecret2testsecret3",  # >= 32 chars  # pragma: allowlist secret
     "JWT_ISSUER": "test-issuer",
     "JWT_AUDIENCE": "test-audience",
     "CORS_ORIGINS": '["http://localhost:3000"]',
-    "WEATHER_API_KEY": "test-weather-key",
-    "TAVILY_API_KEY": "test-tavily-key",
+    "WEATHER_API_KEY": "test-weather-key",  # pragma: allowlist secret
+    "TAVILY_API_KEY": "test-tavily-key",  # pragma: allowlist secret
 }
 
 
@@ -68,7 +68,7 @@ async def db_engine() -> AsyncGenerator[Any, None]:
     if not db_url:
         pytest.skip(
             "TEST_DATABASE_URL not set. Set it to a PostgreSQL URL to run database tests. "
-            "Example: postgresql+asyncpg://user:password@localhost/test_db"
+            "Example: postgresql+asyncpg://user:password@localhost/test_db"  # pragma: allowlist secret
         )
 
     # Convert URL to async driver if needed

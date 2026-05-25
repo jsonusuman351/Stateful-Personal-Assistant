@@ -54,14 +54,21 @@ jobs:
           python-version: "3.11"
 
       - name: Install detect-secrets
-        run: pip install detect-secrets==1.5.0
+        run: pip install detect-secrets==1.5.0  # pragma: allowlist secret
 
       - name: Scan for secrets
-        # Runs a fresh scan and compares against the committed baseline.
-        # Any new potential secret beyond the baseline causes a non-zero exit.
+        # Runs a fresh scan and fails if any unallowlisted secrets are found.
+        # generated_at changes every run so we check results directly, not git diff.
         run: |
           detect-secrets scan --baseline .secrets.baseline
-          git diff --exit-code .secrets.baseline
+          python -c "
+          import json, sys
+          data = json.load(open('.secrets.baseline'))
+          if data.get('results'):
+              print('Unallowlisted secrets found:', json.dumps(data['results'], indent=2))
+              sys.exit(1)
+          print('No secrets found — baseline clean.')
+          "
 
   # ── Stage 4: Tests ───────────────────────────────────────────────────────────
   test:
@@ -73,7 +80,7 @@ jobs:
         env:
           POSTGRES_DB: assistant_test
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres  # pragma: allowlist secret
         ports:
           - 5432:5432
         options: >-
@@ -104,8 +111,8 @@ jobs:
 
       - name: Run tests with coverage
         env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/assistant_test
-          TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/assistant_test
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/assistant_test  # pragma: allowlist secret
+          TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/assistant_test  # pragma: allowlist secret
           REDIS_URL: redis://localhost:6379/0
           # Fall back to zero-entropy placeholders for fork PRs that lack secrets.
           # Unit tests set their own env vars via monkeypatch; these only satisfy
@@ -126,7 +133,7 @@ jobs:
         env:
           POSTGRES_DB: assistant_test
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres  # pragma: allowlist secret
         ports:
           - 5432:5432
         options: >-
@@ -148,7 +155,7 @@ jobs:
 
       - name: Run Alembic migrations (upgrade + downgrade)
         env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/assistant_test
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/assistant_test  # pragma: allowlist secret
           # REDIS_URL and OPENAI_API_KEY are required by settings.py validation even
           # though alembic only uses DATABASE_URL; provide harmless placeholders.
           REDIS_URL: redis://localhost:6379/0

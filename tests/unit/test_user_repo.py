@@ -36,7 +36,7 @@ class TestGetUserByEmail:
 
         assert result is not None
         assert result.email == "alice@example.com"
-        assert result.password_hash == "hashed_pwd"
+        assert result.password_hash == "hashed_pwd"  # pragma: allowlist secret
 
     async def test_get_user_by_email_not_found(self, repo: UserRepository) -> None:
         """get_user_by_email returns None when email does not exist."""
@@ -64,7 +64,7 @@ class TestCreateUser:
 
         assert user.id is not None
         assert user.email == "bob@example.com"
-        assert user.password_hash == "hashed_pwd_2"
+        assert user.password_hash == "hashed_pwd_2"  # pragma: allowlist secret
         assert user.failed_login_attempts == 0
         assert user.locked_until is None
         assert user.is_active is True

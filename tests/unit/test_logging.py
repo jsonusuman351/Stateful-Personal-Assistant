@@ -150,9 +150,9 @@ class TestSensitiveKeyRedaction:
         logger = structlog.get_logger()
         logger.info(
             "case_test",
-            PASSWORD="pass1",
+            PASSWORD="pass1",  # pragma: allowlist secret
             ACCESS_TOKEN="token1",
-            API_KEY="key1",
+            API_KEY="key1",  # pragma: allowlist secret
         )
 
         output = capture_logs.getvalue()

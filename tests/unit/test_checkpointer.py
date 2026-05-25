@@ -18,8 +18,8 @@ from src.persistence.checkpointer import (
 
 # Minimal env vars required by Settings.
 _REQUIRED_ENV: dict[str, str] = {
-    "OPENAI_API_KEY": "sk-test-key",
-    "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/testdb",
+    "OPENAI_API_KEY": "sk-test-key",  # pragma: allowlist secret
+    "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost/testdb",  # pragma: allowlist secret
     "REDIS_URL": "redis://localhost:6379/0",
     "JWT_SECRET": "a" * 32,
     "JWT_ISSUER": "stateful-assistant",
@@ -44,12 +44,12 @@ def reset_checkpointer_state() -> None:
 class TestToPsycopgUrl:
     def test_strips_asyncpg_prefix(self) -> None:
         """postgresql+asyncpg:// must be replaced with postgresql://."""
-        url = "postgresql+asyncpg://user:pass@localhost:5432/mydb"
-        assert _to_psycopg_url(url) == "postgresql://user:pass@localhost:5432/mydb"
+        url = "postgresql+asyncpg://user:pass@localhost:5432/mydb"  # pragma: allowlist secret
+        assert _to_psycopg_url(url) == "postgresql://user:pass@localhost:5432/mydb"  # pragma: allowlist secret
 
     def test_plain_url_unchanged(self) -> None:
         """A URL without the asyncpg prefix must be returned unchanged."""
-        url = "postgresql://user:pass@localhost:5432/mydb"
+        url = "postgresql://user:pass@localhost:5432/mydb"  # pragma: allowlist secret
         assert _to_psycopg_url(url) == url
 
     def test_only_first_occurrence_replaced(self) -> None:
@@ -163,7 +163,7 @@ class TestGetCheckpointer:
             get_checkpointer()
 
         assert len(captured_urls) == 1
-        assert captured_urls[0] == "postgresql://user:pass@localhost/testdb"
+        assert captured_urls[0] == "postgresql://user:pass@localhost/testdb"  # pragma: allowlist secret
 
 
 # ── setup_checkpointer ────────────────────────────────────────────────────────

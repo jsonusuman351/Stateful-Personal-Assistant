@@ -10,7 +10,7 @@ import pytest
 # ── shared env setup ──────────────────────────────────────────────────────────
 
 _REQUIRED_ENV: dict[str, str] = {
-    "OPENAI_API_KEY": "sk-test",
+    "OPENAI_API_KEY": "sk-test",  # pragma: allowlist secret
     "DATABASE_URL": "postgresql+asyncpg://u:p@localhost/db",
     "REDIS_URL": "redis://localhost:6379/0",
     "JWT_SECRET": "a" * 32,

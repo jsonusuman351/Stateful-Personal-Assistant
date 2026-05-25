@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: assistant
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: postgres  # pragma: allowlist secret
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -40,7 +40,7 @@ services:
     environment:
       # Override the localhost URLs from .env with Docker service-name URLs.
       # These two variables are the only ones that differ inside the compose network.
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/assistant
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/assistant  # pragma: allowlist secret
       REDIS_URL: redis://redis:6379/0
     ports:
       - "8000:8000"
