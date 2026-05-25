@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from fastapi import FastAPI, HTTPException
 from httpx import ASGITransport, AsyncClient
@@ -37,7 +39,7 @@ def _make_app() -> FastAPI:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     @app.post("/raise-422")
-    async def raise_422(body: dict) -> dict:
+    async def raise_422(body: dict[str, Any]) -> dict[str, Any]:
         return body
 
     @app.get("/raise-429")
@@ -59,7 +61,7 @@ def _make_app() -> FastAPI:
     return app
 
 
-def _assert_standard_schema(body: dict) -> None:
+def _assert_standard_schema(body: dict[str, Any]) -> None:
     assert "error" in body, f"Missing 'error' key: {body}"
     error = body["error"]
     assert "code" in error

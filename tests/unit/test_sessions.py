@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncGenerator, Callable
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -40,12 +41,12 @@ def _make_app() -> FastAPI:
     return app
 
 
-def _mock_db_session() -> tuple[MagicMock, object]:
+def _mock_db_session() -> tuple[MagicMock, Callable[[], AsyncGenerator[MagicMock, None]]]:
     session = MagicMock()
     session.__aenter__ = AsyncMock(return_value=session)
     session.__aexit__ = AsyncMock(return_value=None)
 
-    async def _get_db():
+    async def _get_db() -> AsyncGenerator[MagicMock, None]:
         yield session
 
     return session, _get_db

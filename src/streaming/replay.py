@@ -41,7 +41,7 @@ async def get_events_after(
 
     # Events are stored sequentially: event with id n is at list index n-1.
     # We want id > last_event_id → start at index last_event_id (0-based).
-    raw: list[str] = await client.lrange(key, last_event_id, -1)
+    raw: list[str] = await client.lrange(key, last_event_id, -1)  # type: ignore[misc]
     return raw
 
 

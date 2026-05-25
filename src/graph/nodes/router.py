@@ -7,6 +7,7 @@ from typing import Any
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 
 from src.agents.state import AgentState, ToolCall
 from src.config.settings import get_settings
@@ -41,7 +42,7 @@ async def router_node(state: AgentState, config: RunnableConfig) -> dict[str, An
     ]
 
     model_id: str = state["active_model"]
-    llm = ChatOpenAI(model=model_id, api_key=settings.OPENAI_API_KEY)  # type: ignore[call-arg]
+    llm = ChatOpenAI(model=model_id, api_key=SecretStr(settings.OPENAI_API_KEY))
 
     messages: list[BaseMessage] = list(state["messages"])
     if tool_schemas:

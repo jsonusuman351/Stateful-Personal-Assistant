@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 
 class MockTavily:
     """Drop-in replacement for ``WebSearchTool._search_sync``.
@@ -20,7 +22,7 @@ class MockTavily:
         call_count:  Number of search calls received.
     """
 
-    _DEFAULT_RESULTS: list[dict] = [
+    _DEFAULT_RESULTS: list[dict[str, Any]] = [
         {
             "content": "Test result 1: detailed information about the topic.",
             "url": "https://example.com/result-1",
@@ -40,11 +42,11 @@ class MockTavily:
 
     def __init__(self) -> None:
         """Initialise with three default high-relevance results."""
-        self.results: list[dict] = list(self._DEFAULT_RESULTS)
+        self.results: list[dict[str, Any]] = list(self._DEFAULT_RESULTS)
         self.call_count: int = 0
         self.last_query: str = ""
 
-    def set_results(self, results: list[dict]) -> None:
+    def set_results(self, results: list[dict[str, Any]]) -> None:
         """Replace the result list returned by subsequent calls.
 
         Args:
@@ -73,7 +75,7 @@ class MockTavily:
             _tool_self: object,
             query: str,
             api_key: str,
-        ) -> dict:
+        ) -> dict[str, Any]:
             mock.call_count += 1
             mock.last_query = query
             return {"results": mock.results, "query": query}

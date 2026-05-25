@@ -40,8 +40,8 @@ class SSEEmitter:
             self._is_hitl = True
 
         ttl = _TTL_HITL if self._is_hitl else _TTL_NORMAL
-        event_id: int = await self._redis.llen(self._key) + 1
+        event_id: int = await self._redis.llen(self._key) + 1  # type: ignore[misc]
         text = self._format(event_id, event_type, payload)
 
-        await self._redis.rpush(self._key, text)
+        await self._redis.rpush(self._key, text)  # type: ignore[misc]
         await self._redis.expire(self._key, ttl)

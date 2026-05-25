@@ -167,7 +167,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     if settings.LANGSMITH_API_KEY:
         try:
-            from langchain_core.callbacks.manager import get_callback_manager
+            from langchain_core.callbacks.manager import (
+                get_callback_manager,  # type: ignore[attr-defined]
+            )
 
             get_callback_manager().flush()
         except Exception as exc:

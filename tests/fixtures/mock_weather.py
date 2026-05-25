@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 
 class MockWeather:
     """Drop-in replacement for ``WeatherTool._fetch_sync``.
@@ -23,7 +25,7 @@ class MockWeather:
 
     def __init__(self) -> None:
         """Initialise with default sunny weather data."""
-        self.data: dict = {
+        self.data: dict[str, Any] = {
             "temperature": 22.5,
             "condition": "Sunny",
             "humidity": 60,
@@ -65,7 +67,7 @@ class MockWeather:
         """
         mock = self
 
-        def _mock_fetch_sync(_tool_self: object, location: str) -> dict:
+        def _mock_fetch_sync(_tool_self: object, location: str) -> dict[str, Any]:
             mock.call_count += 1
             mock.last_location = location
             return {**mock.data, "location": location}

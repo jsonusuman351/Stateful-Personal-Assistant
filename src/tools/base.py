@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -15,9 +15,9 @@ class BaseTool(Protocol):
 
     name: str
     description: str
-    input_schema: dict
+    input_schema: dict[str, Any]
     is_sensitive: bool
 
-    async def execute(self, tool_input: dict) -> dict:
+    async def execute(self, tool_input: dict[str, Any]) -> dict[str, Any]:
         """Execute the tool with the given input and return a result dict."""
         ...

@@ -106,7 +106,7 @@ class RequestMiddleware(BaseHTTPMiddleware):
             latency_ms=latency_ms,
         )
 
-        return response
+        return response  # type: ignore[no-any-return]
 
 
 # ── T-042: Standardised exception handlers ────────────────────────────────────

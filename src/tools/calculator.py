@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from typing import Any
 
 from simpleeval import EvalWithCompoundTypes
 
@@ -17,16 +18,16 @@ class CalculatorTool:
 
     name = "calculator"
     description = "Evaluates arithmetic expressions safely, including math functions."
-    input_schema: dict = {"expression": {"type": "string"}}
+    input_schema: dict[str, Any] = {"expression": {"type": "string"}}
     is_sensitive = False
 
-    _MATH_FUNCTIONS: dict = {
+    _MATH_FUNCTIONS: dict[str, Any] = {
         name: getattr(math, name)
         for name in dir(math)
         if callable(getattr(math, name)) and not name.startswith("_")
     }
 
-    async def execute(self, tool_input: dict) -> dict:
+    async def execute(self, tool_input: dict[str, Any]) -> dict[str, Any]:
         """Evaluate *tool_input['expression']* and return ``{"result": value}``.
 
         Raises:

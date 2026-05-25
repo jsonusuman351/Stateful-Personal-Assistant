@@ -29,7 +29,7 @@ def _with_langsmith(config: RunnableConfig) -> RunnableConfig:
         tracer = LangChainTracer(
             client=LangSmithClient(api_key=settings.LANGSMITH_API_KEY)
         )
-        callbacks = list(config.get("callbacks") or []) + [tracer]
+        callbacks = list(config.get("callbacks") or []) + [tracer]  # type: ignore[arg-type]
         return {**config, "callbacks": callbacks}
     except Exception as exc:
         logger.warning("LangSmith tracer setup failed: %s", exc)
@@ -37,7 +37,7 @@ def _with_langsmith(config: RunnableConfig) -> RunnableConfig:
 
 
 async def run_turn(
-    graph: CompiledStateGraph,
+    graph: CompiledStateGraph,  # type: ignore[type-arg]
     input_state: dict[str, Any],
     config: RunnableConfig,
     sse_emitter: Any,
@@ -87,7 +87,7 @@ async def run_turn(
 
 
 async def resume_turn(
-    graph: CompiledStateGraph,
+    graph: CompiledStateGraph,  # type: ignore[type-arg]
     decision: dict[str, Any],
     config: RunnableConfig,
     sse_emitter: Any,

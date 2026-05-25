@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -38,13 +40,13 @@ def _make_app() -> FastAPI:
     return app
 
 
-def _mock_db_session() -> tuple[MagicMock, MagicMock]:
+def _mock_db_session() -> tuple[MagicMock, Any]:
     """Return (mock_session, mock_dep) suitable for overriding get_db."""
     session = MagicMock()
     session.__aenter__ = AsyncMock(return_value=session)
     session.__aexit__ = AsyncMock(return_value=None)
 
-    async def _get_db():
+    async def _get_db() -> AsyncGenerator[MagicMock, None]:
         yield session
 
     return session, _get_db

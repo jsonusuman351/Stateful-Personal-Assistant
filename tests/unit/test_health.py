@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -38,7 +39,7 @@ def _make_app(ready: bool = True) -> FastAPI:
     return app
 
 
-def _make_engine_mock(conn_side_effects: list) -> MagicMock:
+def _make_engine_mock(conn_side_effects: list[Any]) -> MagicMock:
     """Build an engine mock whose connect() calls use the given side_effects list."""
     contexts = []
     for conn in conn_side_effects:

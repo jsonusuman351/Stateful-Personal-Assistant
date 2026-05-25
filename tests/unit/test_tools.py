@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,20 +17,20 @@ from src.tools.base import BaseTool
 class _GoodTool:
     name = "good"
     description = "A conforming tool"
-    input_schema: dict = {}
+    input_schema: dict[str, Any] = {}
     is_sensitive = False
 
-    async def execute(self, tool_input: dict) -> dict:
+    async def execute(self, tool_input: dict[str, Any]) -> dict[str, Any]:
         return {}
 
 
 class _MissingAttrTool:
     name = "bad"
     # description missing
-    input_schema: dict = {}
+    input_schema: dict[str, Any] = {}
     is_sensitive = False
 
-    async def execute(self, tool_input: dict) -> dict:
+    async def execute(self, tool_input: dict[str, Any]) -> dict[str, Any]:
         return {}
 
 
@@ -47,24 +48,24 @@ def test_missing_attribute_fails_isinstance() -> None:
 
 
 @pytest.fixture()
-def calculator():
+def calculator() -> Any:
     from src.tools.calculator import CalculatorTool
     return CalculatorTool()
 
 
-async def test_calculator_arithmetic(calculator) -> None:
+async def test_calculator_arithmetic(calculator: Any) -> None:
     """Basic arithmetic must return the correct result."""
     result = await calculator.execute({"expression": "2 ** 10 + 5 * 3"})
     assert result == {"result": 1039}
 
 
-async def test_calculator_injection_raises(calculator) -> None:
+async def test_calculator_injection_raises(calculator: Any) -> None:
     """Attempt to execute shell commands must raise ValueError."""
     with pytest.raises(ValueError):
         await calculator.execute({"expression": "__import__('os').system('ls')"})
 
 
-async def test_calculator_math_functions(calculator) -> None:
+async def test_calculator_math_functions(calculator: Any) -> None:
     """Math functions like sqrt must be available."""
     result = await calculator.execute({"expression": "sqrt(16)"})
     assert result == {"result": 4.0}
@@ -108,7 +109,7 @@ def _env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture()
-def weather(monkeypatch: pytest.MonkeyPatch):
+def weather(monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setenv("WEATHER_API_KEY", "test-weather-key")
     from src.config.settings import get_settings
     get_settings.cache_clear()
@@ -117,7 +118,7 @@ def weather(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture()
-def weather_no_key(monkeypatch: pytest.MonkeyPatch):
+def weather_no_key(monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setenv("WEATHER_API_KEY", "")
     from src.config.settings import get_settings
     get_settings.cache_clear()
@@ -125,7 +126,7 @@ def weather_no_key(monkeypatch: pytest.MonkeyPatch):
     return WeatherTool()
 
 
-async def test_weather_success_mock(weather) -> None:
+async def test_weather_success_mock(weather: Any) -> None:
     """execute() with mocked API must return temperature, condition, humidity, location."""
     geo_response = MagicMock()
     geo_response.status_code = 200
@@ -150,7 +151,7 @@ async def test_weather_success_mock(weather) -> None:
     assert "location" in result
 
 
-async def test_weather_api_error_raises_tool_error(weather) -> None:
+async def test_weather_api_error_raises_tool_error(weather: Any) -> None:
     """Non-2xx forecast API response must raise ToolExecutionError."""
     from src.tools.weather import ToolExecutionError
     geo_response = MagicMock()
@@ -166,7 +167,7 @@ async def test_weather_api_error_raises_tool_error(weather) -> None:
             await weather.execute({"location": "London"})
 
 
-async def test_weather_missing_key_returns_config_error(weather_no_key) -> None:
+async def test_weather_missing_key_returns_config_error(weather_no_key: Any) -> None:
     """Missing WEATHER_API_KEY must return config error dict, not crash."""
     result = await weather_no_key.execute({"location": "London"})
     assert result == {"error": "Weather API not configured"}
@@ -176,7 +177,7 @@ async def test_weather_missing_key_returns_config_error(weather_no_key) -> None:
 
 
 @pytest.fixture()
-def web_search(monkeypatch: pytest.MonkeyPatch):
+def web_search(monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setenv("TAVILY_API_KEY", "test-tavily-key")
     from src.config.settings import get_settings
     get_settings.cache_clear()
@@ -185,7 +186,7 @@ def web_search(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture()
-def web_search_no_key(monkeypatch: pytest.MonkeyPatch):
+def web_search_no_key(monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setenv("TAVILY_API_KEY", "")
     from src.config.settings import get_settings
     get_settings.cache_clear()
@@ -193,14 +194,14 @@ def web_search_no_key(monkeypatch: pytest.MonkeyPatch):
     return WebSearchTool()
 
 
-def _make_results(count: int, score: float) -> list[dict]:
+def _make_results(count: int, score: float) -> list[dict[str, Any]]:
     return [
         {"content": "x" * 100, "url": f"http://ex.com/{i}", "score": score}
         for i in range(count)
     ]
 
 
-async def test_web_search_relevance_filter(web_search) -> None:
+async def test_web_search_relevance_filter(web_search: Any) -> None:
     """10 results (5 above 0.7, 5 below) must yield exactly 5."""
     raw = _make_results(5, 0.9) + _make_results(5, 0.5)
 
@@ -210,7 +211,7 @@ async def test_web_search_relevance_filter(web_search) -> None:
     assert len(result["results"]) == 5
 
 
-async def test_web_search_max_results_cap(web_search) -> None:
+async def test_web_search_max_results_cap(web_search: Any) -> None:
     """8 results all above 0.7 must be capped at 5."""
     raw = _make_results(8, 0.9)
 
@@ -220,7 +221,7 @@ async def test_web_search_max_results_cap(web_search) -> None:
     assert len(result["results"]) <= 5
 
 
-async def test_web_search_token_budget_truncation(web_search) -> None:
+async def test_web_search_token_budget_truncation(web_search: Any) -> None:
     """Combined snippet chars must not exceed TOKEN_BUDGET * 4."""
     raw = [{"content": "y" * 5000, "url": f"http://ex.com/{i}", "score": 0.9} for i in range(5)]
 
@@ -231,12 +232,12 @@ async def test_web_search_token_budget_truncation(web_search) -> None:
     assert total_chars <= web_search.TOKEN_BUDGET * 4
 
 
-async def test_web_search_is_sensitive(web_search) -> None:
+async def test_web_search_is_sensitive(web_search: Any) -> None:
     """WebSearchTool.is_sensitive must be True."""
     assert web_search.is_sensitive is True
 
 
-async def test_web_search_missing_key_returns_config_error(web_search_no_key) -> None:
+async def test_web_search_missing_key_returns_config_error(web_search_no_key: Any) -> None:
     """Missing TAVILY_API_KEY must return config error dict, not crash."""
     result = await web_search_no_key.execute({"query": "test"})
     assert result == {"error": "Web search not configured"}

@@ -63,7 +63,7 @@ class _LiveEmitter:
         """Store in Redis and enqueue for live streaming."""
         await self._emitter.emit(event_type, payload)
         # Read back the text just appended (last element)
-        raw = await self._emitter._redis.lindex(self._emitter._key, -1)  # type: ignore[attr-defined]
+        raw = await self._emitter._redis.lindex(self._emitter._key, -1)  # type: ignore[misc]
         text = raw if isinstance(raw, str) else (raw.decode() if raw else "")
         await self._queue.put(text)
         if event_type == "done":

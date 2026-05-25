@@ -10,6 +10,7 @@ Covers:
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -160,7 +161,7 @@ async def test_approve_expired_id_returns_410() -> None:
     mock_session.__aenter__ = AsyncMock(return_value=mock_session)
     mock_session.__aexit__ = AsyncMock(return_value=None)
 
-    async def _get_db():  # type: ignore[override]
+    async def _get_db() -> AsyncGenerator[MagicMock, None]:
         yield mock_session
 
     app = FastAPI()

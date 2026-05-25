@@ -45,8 +45,8 @@ class TestPoolSize:
 
         engine = create_db_engine(settings)
 
-        assert engine.pool.size() == 3  # type: ignore[union-attr]
-        assert engine.pool._max_overflow == 9  # type: ignore[union-attr]  # 12 - 3
+        assert engine.pool.size() == 3  # type: ignore[attr-defined]
+        assert engine.pool._max_overflow == 9  # type: ignore[attr-defined]  # 12 - 3
 
 
 class TestSessionRollback:

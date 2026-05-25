@@ -222,4 +222,4 @@ class ConversationRepository:
 
         del_stmt = delete(Conversation).where(Conversation.id.in_(ids))
         del_result = await self._session.execute(del_stmt)
-        return del_result.rowcount
+        return del_result.rowcount  # type: ignore[attr-defined, no-any-return]

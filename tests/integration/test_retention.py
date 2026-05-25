@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -100,7 +101,7 @@ async def test_open_hitl_skipped(db_session: AsyncSession) -> None:
     assert result.scalar_one_or_none() is not None
 
 
-async def test_in_progress_session_skipped(db_engine) -> None:
+async def test_in_progress_session_skipped(db_engine: Any) -> None:
     """FOR UPDATE SKIP LOCKED skips rows held by a live request (FR-22).
 
     Session A holds an exclusive row lock (simulating an active API request).

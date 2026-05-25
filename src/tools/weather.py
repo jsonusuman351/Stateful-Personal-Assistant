@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 import httpx
 
@@ -38,10 +39,10 @@ class WeatherTool:
 
     name = "weather"
     description = "Returns current temperature, condition, and humidity for a location."
-    input_schema: dict = {"location": {"type": "string"}}
+    input_schema: dict[str, Any] = {"location": {"type": "string"}}
     is_sensitive = False
 
-    async def execute(self, tool_input: dict) -> dict:
+    async def execute(self, tool_input: dict[str, Any]) -> dict[str, Any]:
         """Fetch weather for *tool_input['location']*.
 
         Returns:
@@ -57,7 +58,7 @@ class WeatherTool:
         location: str = tool_input.get("location", "")
         return await asyncio.to_thread(self._fetch_sync, location)
 
-    def _fetch_sync(self, location: str) -> dict:
+    def _fetch_sync(self, location: str) -> dict[str, Any]:
         """Blocking HTTP calls — wrapped in asyncio.to_thread by execute()."""
         geo = httpx.get(_GEO_URL, params={"name": location, "count": 1}, timeout=5)
         if geo.status_code != 200 or not geo.json().get("results"):

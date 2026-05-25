@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from langchain_core.messages import AIMessage
 
 
@@ -26,7 +28,7 @@ class MockOpenAI:
     def __init__(self) -> None:
         """Initialise with a default text response and no tool calls."""
         self.default_content: str = "I'm a helpful AI assistant."
-        self.tool_calls: list[dict] = []
+        self.tool_calls: list[dict[str, Any]] = []
         self.call_count: int = 0
 
     def set_response(self, content: str) -> None:
@@ -37,7 +39,7 @@ class MockOpenAI:
         self.default_content = content
         self.tool_calls = []
 
-    def set_tool_calls(self, tool_calls: list[dict]) -> None:
+    def set_tool_calls(self, tool_calls: list[dict[str, Any]]) -> None:
         """Configure tool selection responses for the router node.
 
         Args:

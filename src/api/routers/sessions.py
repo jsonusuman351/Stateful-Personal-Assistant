@@ -67,7 +67,7 @@ async def list_sessions(
 
     Guest tokens are rejected with 403 via ``require_auth_user``.
     """
-    user_uuid = uuid.UUID(current_user.user_id)  # type: ignore[arg-type]
+    user_uuid = uuid.UUID(current_user.user_id)
     repo = ConversationRepository(db)
     conversations, next_cursor = await repo.list_conversations(user_uuid, cursor, limit)
 
@@ -104,7 +104,7 @@ async def list_messages(
     if conv_uuid is None:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    user_uuid = uuid.UUID(current_user.user_id)  # type: ignore[arg-type]
+    user_uuid = uuid.UUID(current_user.user_id)
     msg_repo = MessageRepository(db)
     messages = await msg_repo.list_messages(user_uuid, conv_uuid)
 
@@ -147,7 +147,7 @@ async def delete_session(
     if conv_uuid is None:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    user_uuid = uuid.UUID(current_user.user_id)  # type: ignore[arg-type]
+    user_uuid = uuid.UUID(current_user.user_id)
     repo = ConversationRepository(db)
 
     conv = await repo.get_conversation(user_uuid, conv_uuid)
@@ -179,7 +179,7 @@ async def approve_hitl(
     if approval_uuid is None:
         raise HTTPException(status_code=422, detail="Invalid approval_id format")
 
-    user_uuid = uuid.UUID(current_user.user_id)  # type: ignore[arg-type]
+    user_uuid = uuid.UUID(current_user.user_id)
     hitl_repo = HITLRepository(db)
 
     # Pre-check: distinguish 409 (concurrent race) from 410 (already done/expired)
@@ -272,7 +272,7 @@ async def switch_model(
     if conv_uuid is None:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    user_uuid = uuid.UUID(current_user.user_id)  # type: ignore[arg-type]
+    user_uuid = uuid.UUID(current_user.user_id)
     repo = ConversationRepository(db)
     conv = await repo.get_conversation(user_uuid, conv_uuid)
     if conv is None:

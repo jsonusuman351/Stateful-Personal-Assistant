@@ -107,9 +107,9 @@ def test_cors_not_wildcard_in_production() -> None:
     app = create_app()
 
     for mw in app.user_middleware:
-        if mw.cls is CORSMiddleware:
+        if mw.cls is CORSMiddleware:  # type: ignore[comparison-overlap]
             allow_origins = mw.kwargs.get("allow_origins", [])
-            assert "*" not in allow_origins, "CORS wildcard must not be used in production"
+            assert "*" not in allow_origins, "CORS wildcard must not be used in production"  # type: ignore[operator]
             return
     # If CORSMiddleware is not found in user_middleware, check the built stack
     # (FastAPI may have already compiled it)

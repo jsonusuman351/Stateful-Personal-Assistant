@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import get_args, get_type_hints
+from typing import cast, get_args, get_type_hints
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from src.agents.state import (
     AgentState,
@@ -20,7 +20,7 @@ def test_messages_reducer_appends() -> None:
 
     existing = [HumanMessage(content="hello")]
     new = [AIMessage(content="world")]
-    result = add_messages(existing, new)
+    result = cast(list[BaseMessage], add_messages(existing, new))  # type: ignore[arg-type]
     assert len(result) == 2
     assert result[0].content == "hello"
     assert result[1].content == "world"

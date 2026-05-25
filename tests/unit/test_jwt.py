@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import jwt as pyjwt
 import pytest
@@ -93,7 +94,7 @@ class TestCreateRefreshToken:
 
 
 class TestDecodeToken:
-    def _make_token(self, overrides: dict) -> str:
+    def _make_token(self, overrides: dict[str, Any]) -> str:
         """Create a raw PyJWT token with custom payload for rejection tests."""
         base = {
             "sub": "uid",

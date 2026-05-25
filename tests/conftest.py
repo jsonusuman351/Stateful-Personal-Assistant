@@ -124,7 +124,7 @@ async def redis_client() -> AsyncGenerator[Any, None]:
     client: aioredis.Redis = aioredis.Redis.from_url(redis_url, decode_responses=True)
 
     try:
-        await client.ping()
+        await client.ping()  # type: ignore[misc]
     except Exception:
         pytest.skip(f"Redis not reachable at {redis_url}")
 

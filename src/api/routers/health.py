@@ -55,7 +55,7 @@ async def readiness(request: Request) -> JSONResponse:
     try:
         from src.persistence.redis_client import get_redis
 
-        await get_redis().ping()
+        await get_redis().ping()  # type: ignore[misc]
         checks["redis"] = "ok"
     except Exception as exc:
         checks["redis"] = f"error: {exc}"

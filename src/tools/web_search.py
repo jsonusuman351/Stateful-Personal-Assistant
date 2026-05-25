@@ -24,14 +24,14 @@ class WebSearchTool:
 
     name = "web_search"
     description = "Searches the web and returns the top relevant results."
-    input_schema: dict = {"query": {"type": "string"}}
+    input_schema: dict[str, Any] = {"query": {"type": "string"}}
     is_sensitive = True
 
     RELEVANCE_THRESHOLD: float = 0.7
     MAX_RESULTS: int = 5
     TOKEN_BUDGET: int = 2000
 
-    async def execute(self, tool_input: dict) -> dict:
+    async def execute(self, tool_input: dict[str, Any]) -> dict[str, Any]:
         """Search Tavily for *tool_input['query']* and return filtered results.
 
         Returns:
@@ -54,12 +54,12 @@ class WebSearchTool:
         client = TavilyClient(api_key=api_key)
         return client.search(query)  # type: ignore[no-any-return]
 
-    def _filter_and_truncate(self, results: list[dict]) -> list[dict]:
+    def _filter_and_truncate(self, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Apply relevance filter, cap, and token-budget truncation."""
         filtered = [r for r in results if r.get("score", 0) >= self.RELEVANCE_THRESHOLD]
         capped = filtered[: self.MAX_RESULTS]
         char_budget = self.TOKEN_BUDGET * 4
-        output: list[dict] = []
+        output: list[dict[str, Any]] = []
         used = 0
         for item in capped:
             content: str = item.get("content", "")

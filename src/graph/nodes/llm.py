@@ -9,6 +9,7 @@ from typing import Any
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 
 from src.agents.state import AgentState, ErrorState
 from src.config.settings import get_settings
@@ -41,7 +42,7 @@ async def llm_node(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
         messages = messages + [HumanMessage(content="\n".join(parts))]
 
     async def _try_model(model_id: str) -> AIMessage | None:
-        llm = ChatOpenAI(model=model_id, api_key=settings.OPENAI_API_KEY)  # type: ignore[call-arg]
+        llm = ChatOpenAI(model=model_id, api_key=SecretStr(settings.OPENAI_API_KEY))
         try:
             response: AIMessage = await asyncio.wait_for(
                 llm.ainvoke(messages), timeout=_LLM_TIMEOUT

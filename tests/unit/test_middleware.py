@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import pytest
 from fastapi import FastAPI
@@ -40,13 +41,13 @@ def _make_app() -> FastAPI:
         return {"status": "ok"}
 
     @app.post("/echo")
-    async def echo_route(body: dict) -> dict:
+    async def echo_route(body: dict[str, Any]) -> dict[str, Any]:
         return body
 
     return app
 
 
-async def test_request_log_has_required_fields(capsys: pytest.CaptureFixture) -> None:
+async def test_request_log_has_required_fields(capsys: pytest.CaptureFixture[str]) -> None:
     """Every request must produce one structured log line with all 7 required fields."""
     app = _make_app()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -104,7 +105,7 @@ async def test_null_byte_body_rejected_422() -> None:
     assert resp.status_code == 422
 
 
-async def test_latency_ms_in_log(capsys: pytest.CaptureFixture) -> None:
+async def test_latency_ms_in_log(capsys: pytest.CaptureFixture[str]) -> None:
     """``latency_ms`` in the log must be a positive integer."""
     app = _make_app()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:

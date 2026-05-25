@@ -61,7 +61,7 @@ def _state(**kwargs: Any) -> AgentState:
 async def test_router_no_tool_needed() -> None:
     """LLM response with no tool calls must return empty tool_calls and tool_results."""
     ai_resp = AIMessage(content="Hello!")
-    ai_resp.tool_calls = []  # type: ignore[assignment]
+    ai_resp.tool_calls = []
 
     with patch("src.graph.nodes.router.ChatOpenAI") as mock_cls, patch(
         "src.graph.nodes.router.get_registry", return_value={}
@@ -86,7 +86,7 @@ async def test_router_selects_weather_tool() -> None:
     weather_mock.is_sensitive = False
 
     ai_resp = AIMessage(content="")
-    ai_resp.tool_calls = [  # type: ignore[assignment]
+    ai_resp.tool_calls = [
         {"name": "weather", "args": {"location": "London"}, "id": "call_1"}
     ]
 
@@ -119,7 +119,7 @@ async def test_router_resets_tool_state() -> None:
     """Router must always return fresh empty tool_results regardless of prior state."""
     existing = ToolCall(tool_name="old", tool_input={}, is_sensitive=False)
     ai_resp = AIMessage(content="Hi")
-    ai_resp.tool_calls = []  # type: ignore[assignment]
+    ai_resp.tool_calls = []
 
     with patch("src.graph.nodes.router.ChatOpenAI") as mock_cls, patch(
         "src.graph.nodes.router.get_registry", return_value={}

@@ -22,7 +22,7 @@ from src.graph.nodes.router import router_node
 from src.graph.nodes.tool_executor import tool_executor_node
 
 
-def build_graph(checkpointer: Any = None) -> CompiledStateGraph:
+def build_graph(checkpointer: Any = None) -> CompiledStateGraph:  # type: ignore[type-arg]
     """Construct and compile the LangGraph StateGraph.
 
     Args:
@@ -32,7 +32,7 @@ def build_graph(checkpointer: Any = None) -> CompiledStateGraph:
     Returns:
         A compiled graph with ``interrupt_after=["hitl_gate"]``.
     """
-    builder: StateGraph = StateGraph(AgentState)
+    builder: StateGraph = StateGraph(AgentState)  # type: ignore[type-arg]
 
     builder.add_node("router", router_node)
     builder.add_node("hitl_gate", hitl_gate_node)
@@ -86,7 +86,7 @@ def build_graph(checkpointer: Any = None) -> CompiledStateGraph:
 
 
 @lru_cache(maxsize=1)
-def get_graph(checkpointer: Any = None) -> CompiledStateGraph:
+def get_graph(checkpointer: Any = None) -> CompiledStateGraph:  # type: ignore[type-arg]
     """Return the compiled graph singleton.
 
     In production, call once during app lifespan with a live checkpointer.
