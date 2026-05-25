@@ -3,7 +3,7 @@
 # No 'from __future__ import annotations' here — LangGraph inspects these
 # annotations at runtime to extract reducer callables from Annotated metadata.
 
-from typing import Annotated, Any, Literal, Optional
+from typing import Annotated, Any, Literal
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
@@ -23,7 +23,7 @@ class ToolResult(TypedDict):
 
     tool_name: str
     output: dict[str, Any]
-    error: Optional[str]
+    error: str | None
     duration_ms: int
 
 
@@ -61,7 +61,7 @@ class AgentState(TypedDict):
 
     # Identity
     session_id: str
-    user_id: Optional[str]  # None for guest sessions
+    user_id: str | None  # None for guest sessions
     thread_id: str  # "auth|{user_id}|{conversation_id}" or "guest|{sha256_hex}"
     stream_id: str  # UUID for the current SSE stream
 
@@ -74,11 +74,11 @@ class AgentState(TypedDict):
     tool_results: Annotated[list[ToolResult], _replace]
 
     # HITL
-    pending_approval: Optional[ApprovalState]  # set by hitl_gate, cleared on resume
-    hitl_decision: Optional[Literal["approve", "deny"]]  # injected by API on resume
+    pending_approval: ApprovalState | None  # set by hitl_gate, cleared on resume
+    hitl_decision: Literal["approve", "deny"] | None  # injected by API on resume
 
     # LLM
     active_model: str  # current model identifier
 
     # Error — last-write-wins; single writer per turn
-    error: Optional[ErrorState]
+    error: ErrorState | None
