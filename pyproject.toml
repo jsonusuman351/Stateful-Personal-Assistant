@@ -48,7 +48,7 @@ known-first-party = ["src"]
 # ── Mypy ───────────────────────────────────────────────────────────────────────
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
@@ -61,8 +61,6 @@ exclude = ["^alembic/"]
 [[tool.mypy.overrides]]
 module = [
     "langgraph.*",
-    "langgraph_checkpoint_postgres.*",
-    "langchain.*",
     "langchain_core.*",
     "langchain_openai.*",
     "structlog.*",
