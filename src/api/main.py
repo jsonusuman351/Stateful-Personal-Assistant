@@ -94,7 +94,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     3. Flush LangSmith callbacks (best-effort).
     """
     from src.config.settings import get_settings
-    from src.persistence.checkpointer import setup_checkpointer
+    from src.persistence.checkpointer import setup_checkpointer, teardown_checkpointer
     from src.persistence.database import get_engine
     from src.persistence.redis_client import close_redis
     from src.tools.registry import load_registry
@@ -156,6 +156,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await get_engine().dispose()
     except Exception as exc:
         logger.warning("DB pool dispose error (non-fatal): %s", exc)
+
+    try:
+        await teardown_checkpointer()
+    except Exception as exc:
+        logger.warning("Checkpointer teardown error (non-fatal): %s", exc)
 
     await close_redis()
 

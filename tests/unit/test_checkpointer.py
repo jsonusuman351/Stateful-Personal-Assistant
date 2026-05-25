@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -14,6 +15,7 @@ from src.persistence.checkpointer import (
     build_thread_id,
     get_checkpointer,
     setup_checkpointer,
+    teardown_checkpointer,
 )
 
 # Minimal env vars required by Settings.
@@ -31,11 +33,12 @@ _REQUIRED_ENV: dict[str, str] = {
 def reset_checkpointer_state() -> None:
     """Reset module-level singletons before each test.
 
-    get_checkpointer() and setup_checkpointer() use module globals to track
-    singleton state.  Resetting them prevents cross-test contamination.
+    setup_checkpointer() uses module globals to track singleton state.
+    Resetting them prevents cross-test contamination.
     """
     checkpointer_module._checkpointer = None
     checkpointer_module._setup_done = False
+    checkpointer_module._saver_cm = None
 
 
 # ── _to_psycopg_url ──────────────────────────────────────────────────────────
@@ -133,35 +136,95 @@ class TestBuildGuestThreadId:
 
 
 class TestGetCheckpointer:
-    def test_returns_singleton(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """get_checkpointer() called twice must return the exact same object."""
+    def test_returns_initialized_checkpointer(self) -> None:
+        """get_checkpointer() returns the saver set by setup_checkpointer."""
+        mock_saver = MagicMock()
+        checkpointer_module._checkpointer = mock_saver
+
+        result = get_checkpointer()
+
+        assert result is mock_saver
+
+    def test_returns_singleton(self) -> None:
+        """get_checkpointer() called twice returns the exact same object."""
+        mock_saver = MagicMock()
+        checkpointer_module._checkpointer = mock_saver
+
+        first = get_checkpointer()
+        second = get_checkpointer()
+
+        assert first is second
+
+    def test_raises_if_not_initialized(self) -> None:
+        """get_checkpointer() raises RuntimeError before setup_checkpointer is called."""
+        # _checkpointer is None (reset by autouse fixture)
+        with pytest.raises(RuntimeError, match="setup_checkpointer"):
+            get_checkpointer()
+
+
+# ── setup_checkpointer ────────────────────────────────────────────────────────
+
+
+def _make_cm_mock() -> tuple[AsyncMock, MagicMock]:
+    """Return ``(mock_saver, mock_cm)`` simulating the async context manager from _create_saver.
+
+    ``mock_cm.__aenter__()`` yields ``mock_saver``.
+    """
+    mock_saver: AsyncMock = AsyncMock()
+    mock_cm: MagicMock = MagicMock()
+    mock_cm.__aenter__ = AsyncMock(return_value=mock_saver)
+    mock_cm.__aexit__ = AsyncMock(return_value=None)
+    return mock_saver, mock_cm
+
+
+class TestSetupCheckpointer:
+    async def test_setup_called_on_first_invocation(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """setup() must be awaited on the saver returned by __aenter__ during first call."""
         for key, value in _REQUIRED_ENV.items():
             monkeypatch.setenv(key, value)
         monkeypatch.delenv("FALLBACK_MODELS", raising=False)
 
-        mock_saver = MagicMock()
+        mock_saver, mock_cm = _make_cm_mock()
 
-        with patch("src.persistence.checkpointer._create_saver", return_value=mock_saver):
-            first = get_checkpointer()
-            second = get_checkpointer()
+        with patch("src.persistence.checkpointer._create_saver", return_value=mock_cm):
+            await setup_checkpointer()
 
-        assert first is second
-        assert first is mock_saver
+        mock_saver.setup.assert_awaited_once()
 
-    def test_url_is_converted_to_psycopg_format(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_setup_idempotent_on_repeated_calls(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """setup() must not be called more than once across multiple setup_checkpointer() calls."""
+        for key, value in _REQUIRED_ENV.items():
+            monkeypatch.setenv(key, value)
+        monkeypatch.delenv("FALLBACK_MODELS", raising=False)
+
+        mock_saver, mock_cm = _make_cm_mock()
+
+        with patch("src.persistence.checkpointer._create_saver", return_value=mock_cm):
+            await setup_checkpointer()
+            await setup_checkpointer()
+            await setup_checkpointer()
+
+        mock_saver.setup.assert_awaited_once()
+
+    async def test_url_is_converted_to_psycopg_format(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """The asyncpg driver prefix must be stripped before passing to _create_saver."""
         for key, value in _REQUIRED_ENV.items():
             monkeypatch.setenv(key, value)
         monkeypatch.delenv("FALLBACK_MODELS", raising=False)
 
         captured_urls: list[str] = []
+        mock_saver, mock_cm = _make_cm_mock()
 
-        def _spy(conn_str: str) -> MagicMock:
+        def _spy(conn_str: str) -> Any:
             captured_urls.append(conn_str)
-            return MagicMock()
+            return mock_cm
 
         with patch("src.persistence.checkpointer._create_saver", side_effect=_spy):
-            get_checkpointer()
+            await setup_checkpointer()
 
         assert len(captured_urls) == 1
         assert (
@@ -170,36 +233,28 @@ class TestGetCheckpointer:
         )
 
 
-# ── setup_checkpointer ────────────────────────────────────────────────────────
+# ── teardown_checkpointer ─────────────────────────────────────────────────────
 
 
-class TestSetupCheckpointer:
-    async def test_setup_called_on_first_invocation(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """setup() must be awaited on the checkpointer during first call."""
-        for key, value in _REQUIRED_ENV.items():
-            monkeypatch.setenv(key, value)
-        monkeypatch.delenv("FALLBACK_MODELS", raising=False)
+class TestTeardownCheckpointer:
+    async def test_teardown_exits_context_manager(self) -> None:
+        """teardown_checkpointer must call __aexit__ on the stored context manager."""
+        mock_saver: MagicMock = MagicMock()
+        mock_cm: MagicMock = MagicMock()
+        mock_cm.__aexit__ = AsyncMock(return_value=None)
 
-        mock_saver = AsyncMock()
+        checkpointer_module._checkpointer = mock_saver
+        checkpointer_module._setup_done = True
+        checkpointer_module._saver_cm = mock_cm
 
-        with patch("src.persistence.checkpointer._create_saver", return_value=mock_saver):
-            await setup_checkpointer()
+        await teardown_checkpointer()
 
-        mock_saver.setup.assert_awaited_once()
+        mock_cm.__aexit__.assert_awaited_once_with(None, None, None)
+        assert checkpointer_module._checkpointer is None
+        assert not checkpointer_module._setup_done
+        assert checkpointer_module._saver_cm is None
 
-    async def test_setup_idempotent_on_repeated_calls(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """setup() must not be called more than once, even after multiple setup_checkpointer() calls."""
-        for key, value in _REQUIRED_ENV.items():
-            monkeypatch.setenv(key, value)
-        monkeypatch.delenv("FALLBACK_MODELS", raising=False)
-
-        mock_saver = AsyncMock()
-
-        with patch("src.persistence.checkpointer._create_saver", return_value=mock_saver):
-            await setup_checkpointer()
-            await setup_checkpointer()
-            await setup_checkpointer()
-
-        mock_saver.setup.assert_awaited_once()
+    async def test_teardown_safe_when_not_initialized(self) -> None:
+        """teardown_checkpointer must not raise when setup_checkpointer was never called."""
+        # All module vars are None/False (reset by autouse fixture)
+        await teardown_checkpointer()  # must not raise

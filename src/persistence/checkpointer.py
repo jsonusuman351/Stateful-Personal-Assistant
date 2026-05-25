@@ -12,11 +12,13 @@ if TYPE_CHECKING:
     # to avoid pulling in psycopg (requires libpq) at module-import time.
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-# ── Module-level lazy singletons ──────────────────────────────────────────────
-# Initialised on first call so that import does not require a live database.
+# ── Module-level singletons (populated by setup_checkpointer) ─────────────────
 
 _checkpointer: AsyncPostgresSaver | None = None
 _setup_done: bool = False
+# Holds the async context manager returned by from_conn_string so it can be
+# exited cleanly on shutdown via teardown_checkpointer().
+_saver_cm: Any = None
 
 
 def _to_psycopg_url(database_url: str) -> str:
@@ -33,11 +35,12 @@ def _to_psycopg_url(database_url: str) -> str:
 
 
 def _create_saver(conn_str: str) -> Any:
-    """Instantiate ``AsyncPostgresSaver`` from a psycopg-compatible connection string.
+    """Return the async context manager from ``AsyncPostgresSaver.from_conn_string``.
 
     Isolated into its own function so tests can patch it without triggering
-    the psycopg / libpq import chain.  Production code should call
-    :func:`get_checkpointer` instead.
+    the psycopg / libpq import chain.  Callers must enter the returned context
+    manager (via ``__aenter__``) to obtain the actual saver instance.
+    Production code should call :func:`setup_checkpointer` instead.
     """
     # Lazy import: deferred here to avoid loading psycopg (requires libpq)
     # at module-import time.  Python caches the module after first import, so
@@ -48,35 +51,60 @@ def _create_saver(conn_str: str) -> Any:
 
 
 def get_checkpointer() -> AsyncPostgresSaver:
-    """Return the module-level ``AsyncPostgresSaver`` singleton.
+    """Return the ``AsyncPostgresSaver`` singleton initialised by :func:`setup_checkpointer`.
 
-    Creates the instance on first call using ``settings.DATABASE_URL``.
-    The URL is converted from SQLAlchemy's asyncpg dialect to the plain
-    PostgreSQL form expected by psycopg3 (see :func:`_to_psycopg_url`).
-
-    Call :func:`setup_checkpointer` during app startup before the first graph
-    invocation to ensure LangGraph's checkpoint tables exist (DESIGN §2.1).
+    Raises:
+        RuntimeError: if :func:`setup_checkpointer` has not been called yet.
     """
-    global _checkpointer
     if _checkpointer is None:
-        settings = get_settings()
-        conn_str = _to_psycopg_url(settings.DATABASE_URL)
-        _checkpointer = _create_saver(conn_str)
+        raise RuntimeError(
+            "Checkpointer has not been initialised. "
+            "Call setup_checkpointer() during app startup before using get_checkpointer()."
+        )
     return _checkpointer
 
 
 async def setup_checkpointer() -> None:
-    """Run ``checkpointer.setup()`` exactly once to create LangGraph tables.
+    """Enter the ``AsyncPostgresSaver`` context manager and run ``setup()`` once.
+
+    Enters the async context manager returned by :func:`_create_saver` to
+    obtain the actual ``AsyncPostgresSaver`` instance, stores it in the
+    module-level singleton, then calls ``setup()`` to create LangGraph's
+    checkpoint tables.
 
     Idempotent: subsequent calls return immediately without re-running setup.
     Must be called during the app lifespan startup before any graph
     invocations (DESIGN §2.1, T-035 lifespan hook).
     """
-    global _setup_done
+    global _checkpointer, _setup_done, _saver_cm
     if _setup_done:
         return
-    await get_checkpointer().setup()
+    settings = get_settings()
+    conn_str = _to_psycopg_url(settings.DATABASE_URL)
+    cm = _create_saver(conn_str)
+    # Enter the context manager to get the live AsyncPostgresSaver instance.
+    # The context manager keeps the psycopg connection open for the app lifetime;
+    # teardown_checkpointer() exits it on shutdown.
+    _checkpointer = await cm.__aenter__()
+    _saver_cm = cm
+    await _checkpointer.setup()
     _setup_done = True
+
+
+async def teardown_checkpointer() -> None:
+    """Exit the ``AsyncPostgresSaver`` context manager and reset singletons.
+
+    Must be called during app lifespan shutdown (after the last graph
+    invocation) to close the psycopg connection cleanly (NFR-9).
+
+    Safe to call even when :func:`setup_checkpointer` was never called.
+    """
+    global _checkpointer, _setup_done, _saver_cm
+    if _saver_cm is not None:
+        await _saver_cm.__aexit__(None, None, None)
+    _checkpointer = None
+    _setup_done = False
+    _saver_cm = None
 
 
 def build_thread_id(user_id: str, conversation_id: str) -> str:
