@@ -167,7 +167,9 @@ async def test_login_success() -> None:
 
     app = _make_app()
     _, mock_get_db = _mock_db_session()
-    app.dependency_overrides[__import__("src.api.dependencies", fromlist=["get_db"]).get_db] = mock_get_db
+    app.dependency_overrides[__import__("src.api.dependencies", fromlist=["get_db"]).get_db] = (
+        mock_get_db
+    )
 
     with (
         patch("src.api.routers.auth.UserRepository", return_value=mock_repo),
@@ -206,6 +208,7 @@ async def test_login_invalid_password_identical_response() -> None:
     app = _make_app()
     _, mock_get_db = _mock_db_session()
     from src.api.dependencies import get_db
+
     app.dependency_overrides[get_db] = mock_get_db
 
     with (
@@ -218,7 +221,10 @@ async def test_login_invalid_password_identical_response() -> None:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp_bad_pass = await c.post(
                 "/auth/login",
-                json={"email": "user@example.com", "password": "wrong-password"},  # pragma: allowlist secret
+                json={
+                    "email": "user@example.com",
+                    "password": "wrong-password",  # pragma: allowlist secret
+                },
             )
 
     # Unknown email path (get_user_by_email returns None)
@@ -235,7 +241,10 @@ async def test_login_invalid_password_identical_response() -> None:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp_bad_email = await c.post(
                 "/auth/login",
-                json={"email": "nonexistent@example.com", "password": "any"},  # pragma: allowlist secret
+                json={
+                    "email": "nonexistent@example.com",
+                    "password": "any",  # pragma: allowlist secret
+                },
             )
 
     assert resp_bad_pass.status_code == 401
@@ -249,6 +258,7 @@ async def test_login_ip_rate_limit() -> None:
     app = _make_app()
     _, mock_get_db = _mock_db_session()
     from src.api.dependencies import get_db
+
     app.dependency_overrides[get_db] = mock_get_db
 
     with (
@@ -268,6 +278,7 @@ async def test_login_email_soft_lock() -> None:
     app = _make_app()
     _, mock_get_db = _mock_db_session()
     from src.api.dependencies import get_db
+
     app.dependency_overrides[get_db] = mock_get_db
 
     with (
@@ -304,6 +315,7 @@ async def test_refresh_token_rotation() -> None:
     app = _make_app()
     _, mock_get_db = _mock_db_session()
     from src.api.dependencies import get_db
+
     app.dependency_overrides[get_db] = mock_get_db
 
     with patch("src.api.routers.auth.UserRepository", return_value=mock_repo):

@@ -104,9 +104,7 @@ async def test_no_tool_chat_full_turn(async_client: Any, mock_openai: Any) -> No
     mock_openai.set_response("The answer is 42.")
 
     headers = await _guest_auth_headers(async_client)
-    post_body, events = await _full_turn(
-        async_client, "What is the meaning of life?", headers
-    )
+    post_body, events = await _full_turn(async_client, "What is the meaning of life?", headers)
 
     event_types = [e["event"] for e in events]
     assert "thinking" in event_types, f"No thinking event in: {event_types}"
@@ -167,9 +165,7 @@ async def test_weather_tool_chat_full_turn(
     monkeypatch.setattr("src.graph.nodes.router.ChatOpenAI", _SmartMock)
 
     headers = await _guest_auth_headers(async_client)
-    post_body, events = await _full_turn(
-        async_client, "What is the weather in London?", headers
-    )
+    post_body, events = await _full_turn(async_client, "What is the weather in London?", headers)
 
     event_types = [e["event"] for e in events]
 
@@ -191,9 +187,7 @@ async def test_weather_tool_chat_full_turn(
     )
 
 
-async def test_first_thinking_within_500ms(
-    async_client: Any, mock_openai: Any
-) -> None:
+async def test_first_thinking_within_500ms(async_client: Any, mock_openai: Any) -> None:
     """First thinking SSE event must be emitted within 500ms of graph start (NFR-2).
 
     The ``elapsed_ms`` field on the thinking event is measured by ``runner.py``
@@ -204,9 +198,7 @@ async def test_first_thinking_within_500ms(
 
     headers = await _guest_auth_headers(async_client)
 
-    post_resp = await async_client.post(
-        "/chat", json={"message": "Hello"}, headers=headers
-    )
+    post_resp = await async_client.post("/chat", json={"message": "Hello"}, headers=headers)
     assert post_resp.status_code == 202
     stream_url: str = post_resp.json()["stream_url"]
 
@@ -223,9 +215,7 @@ async def test_first_thinking_within_500ms(
     )
 
 
-async def test_first_token_within_1500ms(
-    async_client: Any, mock_openai: Any
-) -> None:
+async def test_first_token_within_1500ms(async_client: Any, mock_openai: Any) -> None:
     """First token SSE event must arrive within 1500ms of SSE connection open (NFR-1).
 
     With a mock LLM that calls ``ainvoke()`` directly (no streaming), there are
@@ -238,9 +228,7 @@ async def test_first_token_within_1500ms(
 
     headers = await _guest_auth_headers(async_client)
 
-    post_resp = await async_client.post(
-        "/chat", json={"message": "Hello"}, headers=headers
-    )
+    post_resp = await async_client.post("/chat", json={"message": "Hello"}, headers=headers)
     assert post_resp.status_code == 202
     stream_url: str = post_resp.json()["stream_url"]
 
@@ -264,9 +252,7 @@ async def test_first_token_within_1500ms(
         )
 
 
-async def test_event_ids_monotonically_increasing(
-    async_client: Any, mock_openai: Any
-) -> None:
+async def test_event_ids_monotonically_increasing(async_client: Any, mock_openai: Any) -> None:
     """All SSE event IDs must be monotonically increasing integers starting at 1 (FR-13).
 
     Verifies that the Redis replay buffer's LLEN-based ID counter is correct and
@@ -284,6 +270,4 @@ async def test_event_ids_monotonically_increasing(
     assert ids[0] == 1, f"First event ID must be 1, got {ids[0]}"
 
     for i, (a, b) in enumerate(zip(ids, ids[1:], strict=False)):
-        assert b > a, (
-            f"Event IDs not strictly increasing at index {i}: {ids}"
-        )
+        assert b > a, f"Event IDs not strictly increasing at index {i}: {ids}"

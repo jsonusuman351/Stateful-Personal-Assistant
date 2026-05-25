@@ -43,7 +43,7 @@ async def hitl_gate_node(state: AgentState, config: RunnableConfig) -> dict[str,
     tool_name = sensitive_call["tool_name"] if sensitive_call else "unknown"
 
     user_id, conversation_id = _parse_thread_id(state["thread_id"])
-    configurable: dict[str, Any] = (config.get("configurable") or {})
+    configurable: dict[str, Any] = config.get("configurable") or {}
     checkpoint_id: str = configurable.get("checkpoint_id", "")
 
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=_EXPIRY_MINUTES)

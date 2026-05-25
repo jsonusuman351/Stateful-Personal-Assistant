@@ -17,9 +17,7 @@ class HITLApproval(Base):
     __tablename__ = "hitl_approvals"
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
-    conversation_id: Mapped[UUID] = mapped_column(
-        Uuid, nullable=False, index=True
-    )
+    conversation_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
     user_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
     tool_name: Mapped[str] = mapped_column(String(100), nullable=False)
     thread_id: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -37,12 +35,8 @@ class HITLAuditLog(Base):
 
     __tablename__ = "hitl_audit_log"
 
-    id: Mapped[UUID] = mapped_column(
-        Uuid, primary_key=True, default=func.gen_random_uuid()
-    )
-    approval_id: Mapped[UUID] = mapped_column(
-        Uuid, nullable=False, index=True
-    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=func.gen_random_uuid())
+    approval_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
     user_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
     conversation_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
     tool_name: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -54,7 +48,5 @@ class HITLAuditLog(Base):
     decision_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
-        CheckConstraint(
-            "decision IN ('approve', 'deny', 'timeout')", name="check_decision"
-        ),
+        CheckConstraint("decision IN ('approve', 'deny', 'timeout')", name="check_decision"),
     )

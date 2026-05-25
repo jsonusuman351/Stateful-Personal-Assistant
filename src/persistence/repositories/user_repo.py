@@ -82,11 +82,7 @@ class UserRepository:
         Args:
             user_id: User ID.
         """
-        stmt = (
-            update(User)
-            .where(User.id == user_id)
-            .values(failed_login_attempts=0)
-        )
+        stmt = update(User).where(User.id == user_id).values(failed_login_attempts=0)
         await self._session.execute(stmt)
 
     async def lock_user(self, user_id: UUID, until: datetime) -> None:
@@ -96,11 +92,7 @@ class UserRepository:
             user_id: User ID.
             until: UTC datetime after which the user is unlocked.
         """
-        stmt = (
-            update(User)
-            .where(User.id == user_id)
-            .values(locked_until=until)
-        )
+        stmt = update(User).where(User.id == user_id).values(locked_until=until)
         await self._session.execute(stmt)
 
     async def store_refresh_token(

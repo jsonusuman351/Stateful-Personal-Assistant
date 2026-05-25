@@ -18,24 +18,20 @@ class TestMigrationStructure:
 
     def test_alembic_script_template_exists(self) -> None:
         """Alembic migration template must exist."""
-        assert (
-            Path("alembic/script.py.mako").exists()
-        ), "alembic/script.py.mako not found"
+        assert Path("alembic/script.py.mako").exists(), "alembic/script.py.mako not found"
 
     def test_initial_migration_exists(self) -> None:
         """Initial migration file must exist."""
-        assert (
-            Path("alembic/versions/001_initial_schema.py").exists()
-        ), "001_initial_schema.py not found"
+        assert Path("alembic/versions/001_initial_schema.py").exists(), (
+            "001_initial_schema.py not found"
+        )
 
     def test_migration_file_is_syntactically_valid(self) -> None:
         """Migration file must be valid Python."""
         import py_compile
 
         try:
-            py_compile.compile(
-                "alembic/versions/001_initial_schema.py", doraise=True
-            )
+            py_compile.compile("alembic/versions/001_initial_schema.py", doraise=True)
         except py_compile.PyCompileError as e:
             raise AssertionError(f"Migration file has syntax errors: {e}") from e
 
@@ -64,9 +60,7 @@ class TestMigrationStructure:
         """Migration must create users table."""
         with open("alembic/versions/001_initial_schema.py") as f:
             content = f.read()
-        assert 'op.create_table(\n        "users"' in content, (
-            "users table creation not found"
-        )
+        assert 'op.create_table(\n        "users"' in content, "users table creation not found"
 
     def test_migration_creates_refresh_tokens_table(self) -> None:
         """Migration must create refresh_tokens table."""
@@ -123,9 +117,7 @@ class TestMigrationStructure:
         ]
 
         for drop_statement in required_drops:
-            assert (
-                drop_statement in content
-            ), f"Missing downgrade statement: {drop_statement}"
+            assert drop_statement in content, f"Missing downgrade statement: {drop_statement}"
 
     def test_migration_has_revision_metadata(self) -> None:
         """Migration must have revision metadata."""
@@ -134,17 +126,13 @@ class TestMigrationStructure:
 
         required_metadata = ["revision =", "down_revision =", "branch_labels ="]
         for metadata in required_metadata:
-            assert (
-                metadata in content
-            ), f"Missing migration metadata: {metadata}"
+            assert metadata in content, f"Missing migration metadata: {metadata}"
 
     def test_env_py_imports_async_engine(self) -> None:
         """env.py must import async SQLAlchemy components."""
         with open("alembic/env.py") as f:
             content = f.read()
-        assert (
-            "create_async_engine" in content
-        ), "create_async_engine not imported"
+        assert "create_async_engine" in content, "create_async_engine not imported"
         assert "asyncio" in content, "asyncio not imported"
 
     def test_alembic_ini_has_logging_config(self) -> None:
@@ -157,36 +145,30 @@ class TestMigrationStructure:
         """Users table must have id column."""
         with open("alembic/versions/001_initial_schema.py") as f:
             content = f.read()
-        assert (
-            'sa.Column("id", sa.Uuid()' in content
-        ), "users.id column not found"
+        assert 'sa.Column("id", sa.Uuid()' in content, "users.id column not found"
 
     def test_users_table_has_email_column(self) -> None:
         """Users table must have email column with unique constraint."""
         with open("alembic/versions/001_initial_schema.py") as f:
             content = f.read()
-        assert (
-            'sa.Column("email", sa.String(length=255)' in content
-        ), "users.email column not found"
-        assert (
-            'sa.UniqueConstraint("email"' in content
-        ), "users.email unique constraint not found"
+        assert 'sa.Column("email", sa.String(length=255)' in content, "users.email column not found"
+        assert 'sa.UniqueConstraint("email"' in content, "users.email unique constraint not found"
 
     def test_messages_table_has_role_check_constraint(self) -> None:
         """Messages table must have role CHECK constraint."""
         with open("alembic/versions/001_initial_schema.py") as f:
             content = f.read()
-        assert (
-            "role IN ('user', 'assistant', 'tool')" in content
-        ), "messages.role CHECK constraint not found"
+        assert "role IN ('user', 'assistant', 'tool')" in content, (
+            "messages.role CHECK constraint not found"
+        )
 
     def test_hitl_audit_log_has_decision_check_constraint(self) -> None:
         """HITLAuditLog must have decision CHECK constraint."""
         with open("alembic/versions/001_initial_schema.py") as f:
             content = f.read()
-        assert (
-            "decision IN ('approve', 'deny', 'timeout')" in content
-        ), "hitl_audit_log.decision CHECK constraint not found"
+        assert "decision IN ('approve', 'deny', 'timeout')" in content, (
+            "hitl_audit_log.decision CHECK constraint not found"
+        )
 
     def test_migration_creates_indexes(self) -> None:
         """Migration must create indexes for performance."""

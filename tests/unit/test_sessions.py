@@ -60,9 +60,7 @@ async def test_get_sessions_guest_forbidden() -> None:
     app = _make_app()
     app.dependency_overrides[get_current_user] = lambda: guest
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         resp = await c.get("/sessions")
 
     assert resp.status_code == 403
@@ -91,9 +89,7 @@ async def test_get_sessions_pagination() -> None:
     app.dependency_overrides[get_db] = mock_get_db
 
     with patch("src.api.routers.sessions.ConversationRepository", return_value=mock_repo):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/sessions")
 
     assert resp.status_code == 200
@@ -115,9 +111,7 @@ async def test_get_messages_cross_user_forbidden() -> None:
     app.dependency_overrides[require_auth_user] = lambda: user
     app.dependency_overrides[get_db] = mock_get_db
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         resp = await c.get("/sessions/not-a-valid-uuid/messages")
 
     assert resp.status_code == 403
@@ -144,9 +138,7 @@ async def test_approve_concurrent_409() -> None:
     app.dependency_overrides[get_db] = mock_get_db
 
     with patch("src.api.routers.sessions.HITLRepository", return_value=mock_hitl_repo):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.post(
                 "/sessions/some-session/approve",
                 json={"approval_id": approval_id, "decision": "approve"},
@@ -175,9 +167,7 @@ async def test_approve_replayed_id_410() -> None:
     app.dependency_overrides[get_db] = mock_get_db
 
     with patch("src.api.routers.sessions.HITLRepository", return_value=mock_hitl_repo):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.post(
                 "/sessions/some-session/approve",
                 json={"approval_id": approval_id, "decision": "approve"},
@@ -197,9 +187,7 @@ async def test_model_switch_invalid_name_422() -> None:
     app.dependency_overrides[require_auth_user] = lambda: user
     app.dependency_overrides[get_db] = mock_get_db
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         resp = await c.post(
             "/sessions/some-session-id/model",
             json={"model": "not-a-real-model-xyz-99999"},

@@ -30,16 +30,11 @@ async def error_handler_node(state: AgentState, config: RunnableConfig) -> dict[
     code = error["code"] if error else "UNKNOWN"
 
     if code == "HITL_DENIED":
-        content = (
-            "Your request has been cancelled. The tool action was not approved."
-        )
+        content = "Your request has been cancelled. The tool action was not approved."
     elif code in ("TOOL_ERROR", "TOOL_TIMEOUT"):
         failed = _failed_tool_names(state)
         names = ", ".join(failed) if failed else "one or more tools"
-        content = (
-            f"I was unable to complete your request because {names} failed. "
-            "Please try again."
-        )
+        content = f"I was unable to complete your request because {names} failed. Please try again."
     elif code in ("ALL_MODELS_FAILED", "NO_FALLBACK_CONFIGURED"):
         content = (
             "I'm sorry, I couldn't generate a response right now. "
@@ -51,9 +46,7 @@ async def error_handler_node(state: AgentState, config: RunnableConfig) -> dict[
             "Please re-submit your message if you'd like to try again."
         )
     else:
-        content = (
-            "Something went wrong while processing your request. Please try again."
-        )
+        content = "Something went wrong while processing your request. Please try again."
 
     return {
         "messages": [AIMessage(content=content)],

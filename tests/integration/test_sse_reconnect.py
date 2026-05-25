@@ -69,9 +69,7 @@ async def _run_full_turn(
 
     Asserts HTTP 202 on POST and HTTP 200 text/event-stream on GET.
     """
-    post_resp = await client.post(
-        "/chat", json={"message": message}, headers=headers
-    )
+    post_resp = await client.post("/chat", json={"message": message}, headers=headers)
     assert post_resp.status_code == 202, (
         f"POST /chat returned {post_resp.status_code}: {post_resp.text}"
     )
@@ -105,9 +103,7 @@ async def test_reconnect_replays_missed_events(
     _stream_id, stream_url, all_events = await _run_full_turn(
         async_client, "Reconnect replay test", headers
     )
-    assert len(all_events) >= 3, (
-        f"Need ≥3 events to split 'seen' from 'missed'. Got: {all_events}"
-    )
+    assert len(all_events) >= 3, f"Need ≥3 events to split 'seen' from 'missed'. Got: {all_events}"
 
     # Simulate: client received the first 2 events, then disconnected.
     split_at = 2
@@ -133,9 +129,7 @@ async def test_reconnect_replays_missed_events(
 
     # All replayed events must have id > split_at
     for ev in replayed:
-        assert ev["id"] > split_at, (
-            f"Replayed event id {ev['id']} ≤ Last-Event-ID {split_at}"
-        )
+        assert ev["id"] > split_at, f"Replayed event id {ev['id']} ≤ Last-Event-ID {split_at}"
 
     # IDs must be strictly increasing
     ids = [e["id"] for e in replayed]
@@ -158,9 +152,7 @@ async def test_reconnect_within_2s(
     _stream_id, stream_url, all_events = await _run_full_turn(
         async_client, "Timing reconnect test", headers
     )
-    assert len(all_events) >= 2, (
-        f"Need ≥2 events for reconnect timing test. Got: {all_events}"
-    )
+    assert len(all_events) >= 2, f"Need ≥2 events for reconnect timing test. Got: {all_events}"
 
     # Reconnect with Last-Event-ID: 1 → replay everything from event 2 onward
     t0 = time.monotonic()
@@ -176,9 +168,7 @@ async def test_reconnect_within_2s(
     )
     replayed = _parse_sse(reconnect_resp.text)
     assert replayed, "No events were replayed on reconnect"
-    assert elapsed_ms < 2000, (
-        f"Reconnect took {elapsed_ms:.0f}ms — exceeds 2000ms NFR-5 budget"
-    )
+    assert elapsed_ms < 2000, f"Reconnect took {elapsed_ms:.0f}ms — exceeds 2000ms NFR-5 budget"
 
 
 async def test_cross_session_reconnect_403(
@@ -262,9 +252,7 @@ async def test_graph_not_reexecuted_on_reconnect(
     _stream_id, stream_url, all_events = await _run_full_turn(
         async_client, "No re-execution test", headers
     )
-    assert len(all_events) >= 2, (
-        f"Need ≥2 events for reconnect test. Got: {all_events}"
-    )
+    assert len(all_events) >= 2, f"Need ≥2 events for reconnect test. Got: {all_events}"
 
     # Record LLM call count after the first (and only) graph execution
     call_count_after_turn = mock_openai.call_count

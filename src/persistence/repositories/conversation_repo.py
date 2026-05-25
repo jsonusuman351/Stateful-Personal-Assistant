@@ -68,17 +68,13 @@ class ConversationRepository:
 
         if len(rows) > limit:
             rows = rows[:limit]
-            next_cursor = base64.b64encode(
-                rows[-1].last_accessed.isoformat().encode()
-            ).decode()
+            next_cursor = base64.b64encode(rows[-1].last_accessed.isoformat().encode()).decode()
         else:
             next_cursor = None
 
         return rows, next_cursor
 
-    async def get_conversation(
-        self, user_id: UUID, conversation_id: UUID
-    ) -> Conversation | None:
+    async def get_conversation(self, user_id: UUID, conversation_id: UUID) -> Conversation | None:
         """Fetch a single conversation, scoped to the requesting user.
 
         Returns None — not raises — when the conversation belongs to a
@@ -99,9 +95,7 @@ class ConversationRepository:
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def create_conversation(
-        self, user_id: UUID, title: str
-    ) -> Conversation:
+    async def create_conversation(self, user_id: UUID, title: str) -> Conversation:
         """Create a new conversation, disambiguating duplicate titles.
 
         If a conversation with the same title already exists for this user,
@@ -150,9 +144,7 @@ class ConversationRepository:
                 return candidate
             suffix += 1
 
-    async def delete_conversation(
-        self, user_id: UUID, conversation_id: UUID
-    ) -> None:
+    async def delete_conversation(self, user_id: UUID, conversation_id: UUID) -> None:
         """Delete a conversation owned by user_id.
 
         Silently no-ops when the conversation_id belongs to a different user
@@ -197,11 +189,9 @@ class ConversationRepository:
         """
         cutoff = datetime.now(timezone.utc) - timedelta(days=90)
 
-        open_hitl = (
-            select(HITLApproval.conversation_id).where(
-                HITLApproval.used.is_(False),
-                HITLApproval.expired.is_(False),
-            )
+        open_hitl = select(HITLApproval.conversation_id).where(
+            HITLApproval.used.is_(False),
+            HITLApproval.expired.is_(False),
         )
 
         select_stmt = (

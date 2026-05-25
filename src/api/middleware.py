@@ -169,9 +169,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(ValidationError)
-    async def pydantic_validation_handler(
-        request: Request, exc: ValidationError
-    ) -> JSONResponse:
+    async def pydantic_validation_handler(request: Request, exc: ValidationError) -> JSONResponse:
         return JSONResponse(
             status_code=422,
             content=_error_body("VALIDATION_ERROR", "Request body validation failed.", False),
@@ -182,7 +180,5 @@ def register_exception_handlers(app: FastAPI) -> None:
         logger.error("Unhandled exception", exc_info=exc)
         return JSONResponse(
             status_code=500,
-            content=_error_body(
-                "INTERNAL_SERVER_ERROR", "An unexpected error occurred.", False
-            ),
+            content=_error_body("INTERNAL_SERVER_ERROR", "An unexpected error occurred.", False),
         )

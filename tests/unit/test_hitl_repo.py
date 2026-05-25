@@ -175,9 +175,7 @@ class TestExpireStaleApprovals:
 class TestInsertAuditLog:
     """Tests for insert_audit_log()."""
 
-    async def test_audit_log_inserted(
-        self, repo: HITLRepository, db_session: AsyncSession
-    ) -> None:
+    async def test_audit_log_inserted(self, repo: HITLRepository, db_session: AsyncSession) -> None:
         """insert_audit_log appends a row to hitl_audit_log."""
         approval = await _make_approval(db_session)
         user_id = uuid4()
@@ -239,9 +237,7 @@ class TestInsertAuditLog:
 class TestGetOpenApprovalIds:
     """Tests for get_open_approval_ids_for_conversation()."""
 
-    async def test_returns_open_ids(
-        self, repo: HITLRepository, db_session: AsyncSession
-    ) -> None:
+    async def test_returns_open_ids(self, repo: HITLRepository, db_session: AsyncSession) -> None:
         """get_open_approval_ids_for_conversation returns unused, unexpired IDs."""
         conv_id = uuid4()
         open_approval = await _make_approval(db_session, conversation_id=conv_id)

@@ -10,9 +10,7 @@ import structlog
 from src.config.settings import get_settings
 
 
-def _redact_sensitive_keys(
-    logger: Any, name: str, event_dict: dict[str, Any]
-) -> dict[str, Any]:
+def _redact_sensitive_keys(logger: Any, name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
     """Redact passwords, tokens, and API keys from log output.
 
     Strips values for any key containing 'password', 'token', or 'api_key' (case-insensitive).

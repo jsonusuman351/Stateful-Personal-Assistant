@@ -10,19 +10,21 @@ import redis.asyncio as aioredis
 from src.config.settings import get_settings
 from src.persistence.redis_client import get_redis
 
-OPENAI_MODELS: frozenset[str] = frozenset({
-    "gpt-4o",
-    "gpt-4o-mini",
-    "gpt-4",
-    "gpt-4-turbo",
-    "gpt-4-turbo-preview",
-    "gpt-3.5-turbo",
-    "gpt-3.5-turbo-16k",
-    "o1",
-    "o1-mini",
-    "o1-preview",
-    "o3-mini",
-})
+OPENAI_MODELS: frozenset[str] = frozenset(
+    {
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4",
+        "gpt-4-turbo",
+        "gpt-4-turbo-preview",
+        "gpt-3.5-turbo",
+        "gpt-3.5-turbo-16k",
+        "o1",
+        "o1-mini",
+        "o1-preview",
+        "o3-mini",
+    }
+)
 
 _WINDOW_SECONDS: dict[str, int] = {
     "4h": 4 * 3600,
@@ -94,16 +96,22 @@ async def check_and_increment(
     # Build ordered check table: (key, quota_type_label, limit, window)
     checks: list[tuple[str, str, int, str]] = []
     for window in ("4h", "24h", "7d"):
-        checks.append((f"quota:{uid}:{window}:requests", f"{window}_requests", req_limits[window], window))
-        checks.append((f"quota:{uid}:{window}:tokens", f"{window}_tokens", tok_limits[window], window))
+        checks.append(
+            (f"quota:{uid}:{window}:requests", f"{window}_requests", req_limits[window], window)
+        )
+        checks.append(
+            (f"quota:{uid}:{window}:tokens", f"{window}_tokens", tok_limits[window], window)
+        )
     if ip_hash is not None:
         for window in ("4h", "24h", "7d"):
-            checks.append((
-                f"quota:ip:{ip_hash}:{window}:requests",
-                f"ip_{window}_requests",
-                req_limits[window],
-                window,
-            ))
+            checks.append(
+                (
+                    f"quota:ip:{ip_hash}:{window}:requests",
+                    f"ip_{window}_requests",
+                    req_limits[window],
+                    window,
+                )
+            )
 
     # GET all current values in one sequential pass
     raw_values: dict[str, int] = {}

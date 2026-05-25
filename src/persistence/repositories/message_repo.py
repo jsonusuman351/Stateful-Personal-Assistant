@@ -68,9 +68,7 @@ class MessageRepository:
         await self._session.flush()
         return message
 
-    async def list_messages(
-        self, user_id: UUID, conversation_id: UUID
-    ) -> list[Message]:
+    async def list_messages(self, user_id: UUID, conversation_id: UUID) -> list[Message]:
         """Return all messages for a conversation, ordered by created_at ASC.
 
         Scoped to user_id so cross-user access returns an empty list.

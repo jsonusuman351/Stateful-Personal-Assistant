@@ -74,9 +74,7 @@ class TestListConversations:
         now = datetime.now(timezone.utc)
 
         for i in range(3):
-            await _make_conversation(
-                db_session, user_id, f"Conv {i}", now - timedelta(hours=i)
-            )
+            await _make_conversation(db_session, user_id, f"Conv {i}", now - timedelta(hours=i))
 
         items, cursor = await repo.list_conversations(user_id, limit=2)
 
@@ -91,9 +89,7 @@ class TestListConversations:
         now = datetime.now(timezone.utc)
 
         for i in range(3):
-            await _make_conversation(
-                db_session, user_id, f"Conv {i}", now - timedelta(hours=i)
-            )
+            await _make_conversation(db_session, user_id, f"Conv {i}", now - timedelta(hours=i))
 
         _, cursor = await repo.list_conversations(user_id, limit=2)
         items2, cursor2 = await repo.list_conversations(user_id, cursor=cursor, limit=2)
@@ -101,9 +97,7 @@ class TestListConversations:
         assert len(items2) == 1
         assert cursor2 is None
 
-    async def test_list_empty_returns_empty(
-        self, repo: ConversationRepository
-    ) -> None:
+    async def test_list_empty_returns_empty(self, repo: ConversationRepository) -> None:
         """list_conversations returns empty list when user has no conversations."""
         items, cursor = await repo.list_conversations(uuid4())
         assert items == []
@@ -137,9 +131,7 @@ class TestGetConversation:
 
         assert result is None
 
-    async def test_get_nonexistent_returns_none(
-        self, repo: ConversationRepository
-    ) -> None:
+    async def test_get_nonexistent_returns_none(self, repo: ConversationRepository) -> None:
         """get_conversation returns None for a random conversation_id."""
         result = await repo.get_conversation(uuid4(), uuid4())
         assert result is None
@@ -148,9 +140,7 @@ class TestGetConversation:
 class TestCreateConversation:
     """Tests for create_conversation()."""
 
-    async def test_create_basic(
-        self, repo: ConversationRepository
-    ) -> None:
+    async def test_create_basic(self, repo: ConversationRepository) -> None:
         """create_conversation inserts a new conversation and returns it."""
         user_id = uuid4()
         conv = await repo.create_conversation(user_id, "My First Chat")

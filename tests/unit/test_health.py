@@ -56,9 +56,7 @@ def _make_engine_mock(conn_side_effects: list[Any]) -> MagicMock:
 async def test_liveness_always_200() -> None:
     """`GET /health` returns 200 regardless of migration status."""
     app = _make_app(ready=False)
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         resp = await c.get("/health")
 
     assert resp.status_code == 200
@@ -83,9 +81,7 @@ async def test_readiness_503_on_db_failure() -> None:
         patch("src.persistence.redis_client.get_redis", return_value=mock_redis),
         patch("alembic.script.ScriptDirectory.from_config", return_value=mock_script),
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/readiness")
 
     assert resp.status_code == 503
@@ -121,9 +117,7 @@ async def test_readiness_503_on_stale_migration() -> None:
         patch("src.persistence.redis_client.get_redis", return_value=mock_redis),
         patch("alembic.script.ScriptDirectory.from_config", return_value=mock_script),
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/readiness")
 
     assert resp.status_code == 503

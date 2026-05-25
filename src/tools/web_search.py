@@ -51,6 +51,7 @@ class WebSearchTool:
     def _search_sync(self, query: str, api_key: str) -> dict[str, Any]:
         """Blocking Tavily client call — wrapped in asyncio.to_thread."""
         from tavily import TavilyClient  # lazy import; not installed in all envs
+
         client = TavilyClient(api_key=api_key)
         return client.search(query)  # type: ignore[no-any-return]
 
@@ -68,6 +69,8 @@ class WebSearchTool:
                 break
             if len(content) > remaining:
                 content = content[:remaining]
-            output.append({"content": content, "url": item.get("url", ""), "score": item.get("score", 0)})
+            output.append(
+                {"content": content, "url": item.get("url", ""), "score": item.get("score", 0)}
+            )
             used += len(content)
         return output

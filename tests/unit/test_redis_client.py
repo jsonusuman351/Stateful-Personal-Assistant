@@ -42,9 +42,7 @@ def base_settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
 
 
 class TestPoolSize:
-    def test_pool_size_matches_settings(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_pool_size_matches_settings(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Pool max_connections must equal REDIS_POOL_MAX; min_connections must equal REDIS_POOL_MIN."""
         for key, value in _REQUIRED_ENV.items():
             monkeypatch.setenv(key, value)
@@ -60,9 +58,7 @@ class TestPoolSize:
 
 
 class TestSingleton:
-    def test_singleton_returns_same_instance(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_singleton_returns_same_instance(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """get_redis() called twice must return the identical Redis instance."""
         for key, value in _REQUIRED_ENV.items():
             monkeypatch.setenv(key, value)
@@ -77,9 +73,7 @@ class TestSingleton:
 
 
 class TestCloseRedis:
-    async def test_close_redis_resets_singleton(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_close_redis_resets_singleton(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """close_redis() must release the pool and allow a fresh singleton on next call."""
         for key, value in _REQUIRED_ENV.items():
             monkeypatch.setenv(key, value)

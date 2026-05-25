@@ -16,15 +16,9 @@ class Message(Base):
 
     __tablename__ = "messages"
 
-    id: Mapped[UUID] = mapped_column(
-        Uuid, primary_key=True, default=func.gen_random_uuid()
-    )
-    conversation_id: Mapped[UUID] = mapped_column(
-        Uuid, nullable=False, index=True
-    )
-    user_id: Mapped[UUID] = mapped_column(
-        Uuid, nullable=False, index=True
-    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=func.gen_random_uuid())
+    conversation_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
+    user_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     tool_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -33,6 +27,4 @@ class Message(Base):
         DateTime(timezone=True), nullable=False, default=func.now()
     )
 
-    __table_args__ = (
-        CheckConstraint("role IN ('user', 'assistant', 'tool')", name="check_role"),
-    )
+    __table_args__ = (CheckConstraint("role IN ('user', 'assistant', 'tool')", name="check_role"),)

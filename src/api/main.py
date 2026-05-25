@@ -131,20 +131,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await setup_checkpointer()
 
     # 3. Tool registry
-    registry_path = (
-        Path(__file__).resolve().parent.parent.parent / "config" / "tools.yaml"
-    )
+    registry_path = Path(__file__).resolve().parent.parent.parent / "config" / "tools.yaml"
     load_registry(registry_path)
 
     app.state.ready = True
 
     # 4. Background tasks — started after ready so they can use DB/Redis
-    sweeper = asyncio.create_task(
-        _hitl_timeout_sweeper(), name="hitl-timeout-sweeper"
-    )
-    retention = asyncio.create_task(
-        _conversation_retention_job(), name="conversation-retention"
-    )
+    sweeper = asyncio.create_task(_hitl_timeout_sweeper(), name="hitl-timeout-sweeper")
+    retention = asyncio.create_task(_conversation_retention_job(), name="conversation-retention")
 
     yield
 

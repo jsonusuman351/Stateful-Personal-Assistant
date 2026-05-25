@@ -72,16 +72,12 @@ async def readiness(request: Request) -> JSONResponse:
         head_rev = script.get_current_head()
 
         async with get_engine().connect() as conn:
-            result = await conn.execute(
-                text("SELECT version_num FROM alembic_version LIMIT 1")
-            )
+            result = await conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1"))
             row = result.fetchone()
         current_rev = row[0] if row else None
 
         checks["alembic_revision"] = (
-            "ok"
-            if current_rev == head_rev
-            else f"stale (current={current_rev}, head={head_rev})"
+            "ok" if current_rev == head_rev else f"stale (current={current_rev}, head={head_rev})"
         )
     except Exception as exc:
         checks["alembic_revision"] = f"error: {exc}"

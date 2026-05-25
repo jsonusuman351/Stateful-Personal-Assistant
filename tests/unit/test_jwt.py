@@ -34,6 +34,7 @@ def _set_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("FALLBACK_MODELS", raising=False)
     # Clear lru_cache so settings pick up the monkeypatched env vars.
     from src.config.settings import get_settings
+
     get_settings.cache_clear()
 
 
@@ -90,7 +91,11 @@ class TestCreateRefreshToken:
         exp = datetime.fromtimestamp(claims["exp"], tz=timezone.utc)
 
         delta = (exp - before).total_seconds()
-        assert timedelta(days=30).total_seconds() - 1 <= delta <= timedelta(days=30).total_seconds() + 2
+        assert (
+            timedelta(days=30).total_seconds() - 1
+            <= delta
+            <= timedelta(days=30).total_seconds() + 2
+        )
 
 
 class TestDecodeToken:
@@ -128,8 +133,12 @@ class TestDecodeToken:
     def test_wrong_signature_rejected(self) -> None:
         """decode_token must raise JWTError when signature does not match."""
         bad_token = pyjwt.encode(
-            {"sub": "uid", "iss": "test-issuer", "aud": "test-audience",
-             "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+            {
+                "sub": "uid",
+                "iss": "test-issuer",
+                "aud": "test-audience",
+                "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            },
             "b" * 32,  # different secret — 32 bytes to pass key-length check
             algorithm="HS256",
         )

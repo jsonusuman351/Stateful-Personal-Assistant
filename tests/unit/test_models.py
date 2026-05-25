@@ -30,13 +30,15 @@ class TestUserModel:
         assert "CHAR" in str(columns["id"].type) or str(columns["id"].type) == "UUID"
         assert "VARCHAR" in str(columns["email"].type)
         assert str(columns["password_hash"].type) == "TEXT"
-        assert "TIMESTAMP" in str(columns["created_at"].type) or "DATETIME" in str(columns["created_at"].type)
-        assert "TIMESTAMP" in str(columns["updated_at"].type) or "DATETIME" in str(columns["updated_at"].type)
+        assert "TIMESTAMP" in str(columns["created_at"].type) or "DATETIME" in str(
+            columns["created_at"].type
+        )
+        assert "TIMESTAMP" in str(columns["updated_at"].type) or "DATETIME" in str(
+            columns["updated_at"].type
+        )
         assert str(columns["is_active"].type) == "BOOLEAN"
         assert str(columns["failed_login_attempts"].type) == "INTEGER"
-        assert "TIMESTAMP" in str(columns["locked_until"].type) or columns[
-            "locked_until"
-        ].nullable
+        assert "TIMESTAMP" in str(columns["locked_until"].type) or columns["locked_until"].nullable
 
     def test_user_table_name(self) -> None:
         """User model must map to 'users' table."""
@@ -59,11 +61,17 @@ class TestRefreshTokenModel:
         # Check column types
         assert "CHAR" in str(columns["jti"].type) or str(columns["jti"].type) == "UUID"
         assert "CHAR" in str(columns["user_id"].type) or str(columns["user_id"].type) == "UUID"
-        assert "TIMESTAMP" in str(columns["expires_at"].type) or "DATETIME" in str(columns["expires_at"].type)
-        assert "TIMESTAMP" in str(columns["created_at"].type) or "DATETIME" in str(columns["created_at"].type)
-        assert "TIMESTAMP" in str(columns["revoked_at"].type) or "DATETIME" in str(columns["revoked_at"].type) or columns[
-            "revoked_at"
-        ].nullable
+        assert "TIMESTAMP" in str(columns["expires_at"].type) or "DATETIME" in str(
+            columns["expires_at"].type
+        )
+        assert "TIMESTAMP" in str(columns["created_at"].type) or "DATETIME" in str(
+            columns["created_at"].type
+        )
+        assert (
+            "TIMESTAMP" in str(columns["revoked_at"].type)
+            or "DATETIME" in str(columns["revoked_at"].type)
+            or columns["revoked_at"].nullable
+        )
 
     def test_refresh_token_table_name(self) -> None:
         """RefreshToken model must map to 'refresh_tokens' table."""
@@ -91,8 +99,12 @@ class TestConversationModel:
         assert "CHAR" in str(columns["user_id"].type) or str(columns["user_id"].type) == "UUID"
         assert "VARCHAR" in str(columns["title"].type)
         assert "VARCHAR" in str(columns["active_model"].type)
-        assert "TIMESTAMP" in str(columns["created_at"].type) or "DATETIME" in str(columns["created_at"].type)
-        assert "TIMESTAMP" in str(columns["last_accessed"].type) or "DATETIME" in str(columns["last_accessed"].type)
+        assert "TIMESTAMP" in str(columns["created_at"].type) or "DATETIME" in str(
+            columns["created_at"].type
+        )
+        assert "TIMESTAMP" in str(columns["last_accessed"].type) or "DATETIME" in str(
+            columns["last_accessed"].type
+        )
         assert str(columns["access_count"].type) == "INTEGER"
         assert str(columns["message_count"].type) == "INTEGER"
 
@@ -119,15 +131,18 @@ class TestMessageModel:
 
         # Check column types
         assert "CHAR" in str(columns["id"].type) or str(columns["id"].type) == "UUID"
-        assert "CHAR" in str(columns["conversation_id"].type) or str(columns["conversation_id"].type) == "UUID"
+        assert (
+            "CHAR" in str(columns["conversation_id"].type)
+            or str(columns["conversation_id"].type) == "UUID"
+        )
         assert "CHAR" in str(columns["user_id"].type) or str(columns["user_id"].type) == "UUID"
         assert "VARCHAR" in str(columns["role"].type)
         assert str(columns["content"].type) == "TEXT"
-        assert "VARCHAR" in str(columns["tool_name"].type) or columns[
-            "tool_name"
-        ].nullable
+        assert "VARCHAR" in str(columns["tool_name"].type) or columns["tool_name"].nullable
         assert str(columns["turn_index"].type) == "INTEGER"
-        assert "TIMESTAMP" in str(columns["created_at"].type) or "DATETIME" in str(columns["created_at"].type)
+        assert "TIMESTAMP" in str(columns["created_at"].type) or "DATETIME" in str(
+            columns["created_at"].type
+        )
 
     def test_message_table_name(self) -> None:
         """Message model must map to 'messages' table."""

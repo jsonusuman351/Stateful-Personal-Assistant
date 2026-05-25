@@ -123,9 +123,7 @@ class TestFailedLoginCounters:
 class TestLockUser:
     """Tests for lock_user()."""
 
-    async def test_lock_user(
-        self, repo: UserRepository, db_session: AsyncSession
-    ) -> None:
+    async def test_lock_user(self, repo: UserRepository, db_session: AsyncSession) -> None:
         """lock_user sets locked_until to the given timestamp."""
         user = User(email="grace@example.com", password_hash="hashed")
         db_session.add(user)
@@ -273,20 +271,14 @@ class TestNoRawSqlStringConcatenation:
                     keyword in fstring_value.lower()
                     for keyword in ["select", "update", "insert", "delete", "where"]
                 ):
-                    pytest.fail(
-                        f"Found SQL-like f-string in user_repo.py: {fstring_value}"
-                    )
+                    pytest.fail(f"Found SQL-like f-string in user_repo.py: {fstring_value}")
 
         # Check for string concatenation with +
         for node in ast.walk(tree):
             if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
                 # It's a + operation — reject if operands are strings
-                if (
-                    isinstance(node.left, ast.Constant)
-                    and isinstance(node.left.value, str)
-                ) or (
-                    isinstance(node.right, ast.Constant)
-                    and isinstance(node.right.value, str)
+                if (isinstance(node.left, ast.Constant) and isinstance(node.left.value, str)) or (
+                    isinstance(node.right, ast.Constant) and isinstance(node.right.value, str)
                 ):
                     concat_value = ast.unparse(node)
                     if any(

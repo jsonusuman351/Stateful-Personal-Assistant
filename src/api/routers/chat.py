@@ -244,15 +244,16 @@ async def stream_chat(
             "run_id": ctx["message_id"],
         }
         try:
-            await run_turn(
-                get_graph(get_checkpointer()), input_state, config, emitter
-            )
+            await run_turn(get_graph(get_checkpointer()), input_state, config, emitter)
         except Exception as exc:
-            await emitter.emit("error", {
-                "code": "GRAPH_ERROR",
-                "message": str(exc),
-                "retryable": False,
-            })
+            await emitter.emit(
+                "error",
+                {
+                    "code": "GRAPH_ERROR",
+                    "message": str(exc),
+                    "retryable": False,
+                },
+            )
             await emitter.emit("done", {"message_id": ctx["message_id"]})
 
     async def _sse_generator() -> AsyncGenerator[bytes, None]:

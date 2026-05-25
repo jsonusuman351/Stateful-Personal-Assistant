@@ -45,7 +45,10 @@ class TestToPsycopgUrl:
     def test_strips_asyncpg_prefix(self) -> None:
         """postgresql+asyncpg:// must be replaced with postgresql://."""
         url = "postgresql+asyncpg://user:pass@localhost:5432/mydb"  # pragma: allowlist secret
-        assert _to_psycopg_url(url) == "postgresql://user:pass@localhost:5432/mydb"  # pragma: allowlist secret
+        assert (
+            _to_psycopg_url(url)
+            == "postgresql://user:pass@localhost:5432/mydb"  # pragma: allowlist secret
+        )
 
     def test_plain_url_unchanged(self) -> None:
         """A URL without the asyncpg prefix must be returned unchanged."""
@@ -97,7 +100,7 @@ class TestBuildGuestThreadId:
         """build_guest_thread_id must return 'guest|{64-char hex}'."""
         result = build_guest_thread_id("192.168.1.1", "Mozilla/5.0")
         assert result.startswith("guest|")
-        hex_part = result[len("guest|"):]
+        hex_part = result[len("guest|") :]
         assert len(hex_part) == 64
         assert all(c in "0123456789abcdef" for c in hex_part)
 
@@ -145,9 +148,7 @@ class TestGetCheckpointer:
         assert first is second
         assert first is mock_saver
 
-    def test_url_is_converted_to_psycopg_format(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_url_is_converted_to_psycopg_format(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """The asyncpg driver prefix must be stripped before passing to _create_saver."""
         for key, value in _REQUIRED_ENV.items():
             monkeypatch.setenv(key, value)
@@ -163,16 +164,17 @@ class TestGetCheckpointer:
             get_checkpointer()
 
         assert len(captured_urls) == 1
-        assert captured_urls[0] == "postgresql://user:pass@localhost/testdb"  # pragma: allowlist secret
+        assert (
+            captured_urls[0]
+            == "postgresql://user:pass@localhost/testdb"  # pragma: allowlist secret
+        )
 
 
 # ── setup_checkpointer ────────────────────────────────────────────────────────
 
 
 class TestSetupCheckpointer:
-    async def test_setup_called_on_first_invocation(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_setup_called_on_first_invocation(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """setup() must be awaited on the checkpointer during first call."""
         for key, value in _REQUIRED_ENV.items():
             monkeypatch.setenv(key, value)

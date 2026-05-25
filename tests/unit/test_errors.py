@@ -73,9 +73,7 @@ def _assert_standard_schema(body: dict[str, Any]) -> None:
 async def test_401_uses_standard_schema() -> None:
     """HTTP 401 responses must use the standardised error schema (FR-29)."""
     app = _make_app()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         resp = await c.get("/raise-401")
 
     assert resp.status_code == 401
@@ -86,9 +84,7 @@ async def test_401_uses_standard_schema() -> None:
 async def test_422_uses_standard_schema() -> None:
     """HTTP 422 responses must use the standardised error schema (FR-29)."""
     app = _make_app()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         resp = await c.post(
             "/raise-422",
             content=b"not-valid-json",
@@ -103,9 +99,7 @@ async def test_422_uses_standard_schema() -> None:
 async def test_429_includes_retry_after() -> None:
     """HTTP 429 must include a non-null retry_after_seconds value (FR-29)."""
     app = _make_app()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         resp = await c.get("/raise-429")
 
     assert resp.status_code == 429

@@ -220,18 +220,14 @@ async def _start_hitl_flow(
         json={"message": "Search for climate change news", "session_id": str(conv_id)},
         headers=headers,
     )
-    assert post_resp.status_code == 202, (
-        f"POST /chat: {post_resp.status_code} — {post_resp.text}"
-    )
+    assert post_resp.status_code == 202, f"POST /chat: {post_resp.status_code} — {post_resp.text}"
     post_body: dict[str, Any] = post_resp.json()
     stream_url: str = post_body["stream_url"]
     message_id: str = post_body["message_id"]
     stream_id: str = stream_url.split("stream_id=")[1]
 
     stream_resp = await client.get(stream_url, headers=headers, timeout=30.0)
-    assert stream_resp.status_code == 200, (
-        f"GET /chat/stream: {stream_resp.status_code}"
-    )
+    assert stream_resp.status_code == 200, f"GET /chat/stream: {stream_resp.status_code}"
     assert "text/event-stream" in stream_resp.headers.get("content-type", "")
 
     events = _parse_sse(stream_resp.text)
@@ -250,9 +246,7 @@ async def test_checkpoint_committed_before_sse(
     )
 
     approval_events = [e for e in events if e["event"] == "approval_required"]
-    assert approval_events, (
-        f"No approval_required event. Events: {[e['event'] for e in events]}"
-    )
+    assert approval_events, f"No approval_required event. Events: {[e['event'] for e in events]}"
 
     payload: dict[str, Any] = approval_events[0]["data"]
     assert "approval_id" in payload, "approval_required payload missing approval_id"
@@ -305,9 +299,7 @@ async def test_approve_resumes_graph(
     assert reconnect_resp.status_code == 200
     resumed_events = _parse_sse(reconnect_resp.text)
     event_types = [e["event"] for e in resumed_events]
-    assert "done" in event_types, (
-        f"No done event in resumed stream. Events: {event_types}"
-    )
+    assert "done" in event_types, f"No done event in resumed stream. Events: {event_types}"
 
 
 async def test_deny_routes_to_error_handler(
@@ -343,9 +335,7 @@ async def test_deny_routes_to_error_handler(
     assert reconnect_resp.status_code == 200
     resumed_events = _parse_sse(reconnect_resp.text)
     event_types = [e["event"] for e in resumed_events]
-    assert "done" in event_types, (
-        f"Graph did not complete after deny. Events: {event_types}"
-    )
+    assert "done" in event_types, f"Graph did not complete after deny. Events: {event_types}"
 
 
 async def test_concurrent_approve_409(
@@ -374,8 +364,7 @@ async def test_concurrent_approve_409(
 
     statuses = sorted([resp1.status_code, resp2.status_code])
     assert statuses == [200, 409], (
-        f"Expected [200, 409], got {statuses}. "
-        f"Bodies: {resp1.text!r}, {resp2.text!r}"
+        f"Expected [200, 409], got {statuses}. Bodies: {resp1.text!r}, {resp2.text!r}"
     )
 
 
@@ -402,9 +391,7 @@ async def test_replayed_approval_id_410(
         json={"approval_id": str(approval_id), "decision": "approve"},
         headers=headers,
     )
-    assert resp2.status_code == 410, (
-        f"Expected 410, got {resp2.status_code}: {resp2.text}"
-    )
+    assert resp2.status_code == 410, f"Expected 410, got {resp2.status_code}: {resp2.text}"
 
 
 async def test_audit_log_inserted(
@@ -435,9 +422,7 @@ async def test_audit_log_inserted(
         )
         log_entries = list(result.scalars())
 
-    assert len(log_entries) == 1, (
-        f"Expected 1 audit log entry, found {len(log_entries)}"
-    )
+    assert len(log_entries) == 1, f"Expected 1 audit log entry, found {len(log_entries)}"
     entry = log_entries[0]
     assert entry.decision == "approve"
     assert entry.conversation_id == conv_id

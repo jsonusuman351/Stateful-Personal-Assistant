@@ -63,8 +63,9 @@ async def test_router_no_tool_needed() -> None:
     ai_resp = AIMessage(content="Hello!")
     ai_resp.tool_calls = []
 
-    with patch("src.graph.nodes.router.ChatOpenAI") as mock_cls, patch(
-        "src.graph.nodes.router.get_registry", return_value={}
+    with (
+        patch("src.graph.nodes.router.ChatOpenAI") as mock_cls,
+        patch("src.graph.nodes.router.get_registry", return_value={}),
     ):
         mock_llm = MagicMock()
         mock_llm.ainvoke = AsyncMock(return_value=ai_resp)
@@ -86,14 +87,13 @@ async def test_router_selects_weather_tool() -> None:
     weather_mock.is_sensitive = False
 
     ai_resp = AIMessage(content="")
-    ai_resp.tool_calls = [
-        {"name": "weather", "args": {"location": "London"}, "id": "call_1"}
-    ]
+    ai_resp.tool_calls = [{"name": "weather", "args": {"location": "London"}, "id": "call_1"}]
 
     registry = {"weather": weather_mock}
 
-    with patch("src.graph.nodes.router.ChatOpenAI") as mock_cls, patch(
-        "src.graph.nodes.router.get_registry", return_value=registry
+    with (
+        patch("src.graph.nodes.router.ChatOpenAI") as mock_cls,
+        patch("src.graph.nodes.router.get_registry", return_value=registry),
     ):
         mock_llm = MagicMock()
         mock_bound = MagicMock()
@@ -121,8 +121,9 @@ async def test_router_resets_tool_state() -> None:
     ai_resp = AIMessage(content="Hi")
     ai_resp.tool_calls = []
 
-    with patch("src.graph.nodes.router.ChatOpenAI") as mock_cls, patch(
-        "src.graph.nodes.router.get_registry", return_value={}
+    with (
+        patch("src.graph.nodes.router.ChatOpenAI") as mock_cls,
+        patch("src.graph.nodes.router.get_registry", return_value={}),
     ):
         mock_llm = MagicMock()
         mock_llm.ainvoke = AsyncMock(return_value=ai_resp)
@@ -139,11 +140,7 @@ async def test_router_resets_tool_state() -> None:
 # ── T-025: hitl_gate_node ────────────────────────────────────────────────────
 
 
-_AUTH_THREAD = (
-    "auth"
-    "|00000000-0000-0000-0000-000000000001"
-    "|00000000-0000-0000-0000-000000000002"
-)
+_AUTH_THREAD = "auth|00000000-0000-0000-0000-000000000001|00000000-0000-0000-0000-000000000002"
 _APPROVAL_UUID = UUID("12345678-1234-5678-1234-567812345678")
 
 
@@ -171,8 +168,9 @@ async def test_hitl_gate_writes_approval_to_db() -> None:
     mock_repo = MagicMock()
     mock_repo.create_approval = AsyncMock(return_value=_APPROVAL_UUID)
 
-    with patch("src.graph.nodes.hitl_gate.get_db_session", return_value=_mock_db_ctx()), patch(
-        "src.graph.nodes.hitl_gate.HITLRepository", return_value=mock_repo
+    with (
+        patch("src.graph.nodes.hitl_gate.get_db_session", return_value=_mock_db_ctx()),
+        patch("src.graph.nodes.hitl_gate.HITLRepository", return_value=mock_repo),
     ):
         from src.graph.nodes.hitl_gate import hitl_gate_node
 
@@ -186,8 +184,9 @@ async def test_hitl_gate_sets_pending_approval_state() -> None:
     mock_repo = MagicMock()
     mock_repo.create_approval = AsyncMock(return_value=_APPROVAL_UUID)
 
-    with patch("src.graph.nodes.hitl_gate.get_db_session", return_value=_mock_db_ctx()), patch(
-        "src.graph.nodes.hitl_gate.HITLRepository", return_value=mock_repo
+    with (
+        patch("src.graph.nodes.hitl_gate.get_db_session", return_value=_mock_db_ctx()),
+        patch("src.graph.nodes.hitl_gate.HITLRepository", return_value=mock_repo),
     ):
         from src.graph.nodes.hitl_gate import hitl_gate_node
 
@@ -268,8 +267,9 @@ async def test_tool_executor_retry_on_failure() -> None:
 
     state = _state(tool_calls=[ToolCall(tool_name="flaky", tool_input={}, is_sensitive=False)])
 
-    with patch("src.graph.nodes.tool_executor.get_registry", return_value={"flaky": mock_tool}), patch(
-        "src.graph.nodes.tool_executor.asyncio.sleep", new_callable=AsyncMock
+    with (
+        patch("src.graph.nodes.tool_executor.get_registry", return_value={"flaky": mock_tool}),
+        patch("src.graph.nodes.tool_executor.asyncio.sleep", new_callable=AsyncMock),
     ):
         from src.graph.nodes.tool_executor import tool_executor_node
 
@@ -295,8 +295,9 @@ async def test_tool_executor_retry_delays() -> None:
 
     state = _state(tool_calls=[ToolCall(tool_name="t", tool_input={}, is_sensitive=False)])
 
-    with patch("src.graph.nodes.tool_executor.get_registry", return_value={"t": mock_tool}), patch(
-        "src.graph.nodes.tool_executor.asyncio.sleep", side_effect=record_sleep
+    with (
+        patch("src.graph.nodes.tool_executor.get_registry", return_value={"t": mock_tool}),
+        patch("src.graph.nodes.tool_executor.asyncio.sleep", side_effect=record_sleep),
     ):
         from src.graph.nodes.tool_executor import tool_executor_node
 
@@ -316,8 +317,9 @@ async def test_tool_executor_exhausted_retries_sets_error() -> None:
 
     state = _state(tool_calls=[ToolCall(tool_name="bad", tool_input={}, is_sensitive=False)])
 
-    with patch("src.graph.nodes.tool_executor.get_registry", return_value={"bad": mock_tool}), patch(
-        "src.graph.nodes.tool_executor.asyncio.sleep", new_callable=AsyncMock
+    with (
+        patch("src.graph.nodes.tool_executor.get_registry", return_value={"bad": mock_tool}),
+        patch("src.graph.nodes.tool_executor.asyncio.sleep", new_callable=AsyncMock),
     ):
         from src.graph.nodes.tool_executor import tool_executor_node
 
@@ -357,8 +359,9 @@ async def test_llm_node_success() -> None:
     ai_msg = AIMessage(content="Hello from LLM!")
     factory = _make_llm_factory([ai_msg])
 
-    with patch("src.graph.nodes.llm.ChatOpenAI", side_effect=factory), patch(
-        "src.graph.nodes.llm.asyncio.sleep", new_callable=AsyncMock
+    with (
+        patch("src.graph.nodes.llm.ChatOpenAI", side_effect=factory),
+        patch("src.graph.nodes.llm.asyncio.sleep", new_callable=AsyncMock),
     ):
         from src.graph.nodes.llm import llm_node
 
@@ -381,8 +384,9 @@ async def test_llm_node_retries_primary_twice() -> None:
     async def record_sleep(delay: float) -> None:
         sleep_calls.append(delay)
 
-    with patch("src.graph.nodes.llm.ChatOpenAI", side_effect=factory), patch(
-        "src.graph.nodes.llm.asyncio.sleep", side_effect=record_sleep
+    with (
+        patch("src.graph.nodes.llm.ChatOpenAI", side_effect=factory),
+        patch("src.graph.nodes.llm.asyncio.sleep", side_effect=record_sleep),
     ):
         from src.graph.nodes.llm import llm_node
 
@@ -402,15 +406,18 @@ async def test_llm_node_fallback_chain(monkeypatch: pytest.MonkeyPatch) -> None:
     get_settings.cache_clear()
 
     ai_msg = AIMessage(content="Fallback response")
-    factory = _make_llm_factory([
-        RuntimeError("primary 1"),
-        RuntimeError("primary 2"),
-        RuntimeError("primary 3"),
-        ai_msg,
-    ])
+    factory = _make_llm_factory(
+        [
+            RuntimeError("primary 1"),
+            RuntimeError("primary 2"),
+            RuntimeError("primary 3"),
+            ai_msg,
+        ]
+    )
 
-    with patch("src.graph.nodes.llm.ChatOpenAI", side_effect=factory), patch(
-        "src.graph.nodes.llm.asyncio.sleep", new_callable=AsyncMock
+    with (
+        patch("src.graph.nodes.llm.ChatOpenAI", side_effect=factory),
+        patch("src.graph.nodes.llm.asyncio.sleep", new_callable=AsyncMock),
     ):
         from src.graph.nodes.llm import llm_node
 
@@ -428,15 +435,18 @@ async def test_llm_node_all_failed_error(monkeypatch: pytest.MonkeyPatch) -> Non
 
     get_settings.cache_clear()
 
-    factory = _make_llm_factory([
-        RuntimeError("primary 1"),
-        RuntimeError("primary 2"),
-        RuntimeError("primary 3"),
-        RuntimeError("fallback 1"),
-    ])
+    factory = _make_llm_factory(
+        [
+            RuntimeError("primary 1"),
+            RuntimeError("primary 2"),
+            RuntimeError("primary 3"),
+            RuntimeError("fallback 1"),
+        ]
+    )
 
-    with patch("src.graph.nodes.llm.ChatOpenAI", side_effect=factory), patch(
-        "src.graph.nodes.llm.asyncio.sleep", new_callable=AsyncMock
+    with (
+        patch("src.graph.nodes.llm.ChatOpenAI", side_effect=factory),
+        patch("src.graph.nodes.llm.asyncio.sleep", new_callable=AsyncMock),
     ):
         from src.graph.nodes.llm import llm_node
 
@@ -460,8 +470,9 @@ async def test_llm_node_empty_response_triggers_fallback(monkeypatch: pytest.Mon
     real = AIMessage(content="Fallback answer")
     factory = _make_llm_factory([empty, empty, empty, real])
 
-    with patch("src.graph.nodes.llm.ChatOpenAI", side_effect=factory), patch(
-        "src.graph.nodes.llm.asyncio.sleep", new_callable=AsyncMock
+    with (
+        patch("src.graph.nodes.llm.ChatOpenAI", side_effect=factory),
+        patch("src.graph.nodes.llm.asyncio.sleep", new_callable=AsyncMock),
     ):
         from src.graph.nodes.llm import llm_node
 
@@ -494,7 +505,12 @@ async def test_error_handler_hitl_denied() -> None:
 async def test_error_handler_tool_failure() -> None:
     """TOOL_ERROR must list failing tool names in the AIMessage."""
     state = _state(
-        error={"code": "TOOL_ERROR", "message": "tool failed", "retryable": False, "retry_count": 0},
+        error={
+            "code": "TOOL_ERROR",
+            "message": "tool failed",
+            "retryable": False,
+            "retry_count": 0,
+        },
         tool_results=[
             ToolResult(tool_name="weather", output={}, error="timeout", duration_ms=100),
             ToolResult(tool_name="calculator", output={"result": 42}, error=None, duration_ms=10),

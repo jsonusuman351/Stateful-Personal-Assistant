@@ -7,8 +7,8 @@ from typing import Any
 
 import redis.asyncio as aioredis
 
-_TTL_NORMAL = 300   # 5 minutes — non-HITL streams
-_TTL_HITL = 900     # 15 minutes — HITL streams (approval pending)
+_TTL_NORMAL = 300  # 5 minutes — non-HITL streams
+_TTL_HITL = 900  # 15 minutes — HITL streams (approval pending)
 
 
 class SSEEmitter:

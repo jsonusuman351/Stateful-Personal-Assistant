@@ -171,9 +171,7 @@ async def test_approve_expired_id_returns_410() -> None:
     app.dependency_overrides[get_db] = _get_db
 
     with patch("src.api.routers.sessions.HITLRepository", return_value=mock_hitl_repo):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.post(
                 "/sessions/some-session/approve",
                 json={"approval_id": approval_id, "decision": "approve"},

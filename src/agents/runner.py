@@ -26,9 +26,7 @@ def _with_langsmith(config: RunnableConfig) -> RunnableConfig:
         from langchain_core.tracers import LangChainTracer
         from langsmith import Client as LangSmithClient
 
-        tracer = LangChainTracer(
-            client=LangSmithClient(api_key=settings.LANGSMITH_API_KEY)
-        )
+        tracer = LangChainTracer(client=LangSmithClient(api_key=settings.LANGSMITH_API_KEY))
         callbacks = list(config.get("callbacks") or []) + [tracer]  # type: ignore[arg-type]
         return {**config, "callbacks": callbacks}
     except Exception as exc:
@@ -71,10 +69,13 @@ async def run_turn(
                 await sse_emitter.emit("token", {"content": chunk.content})
 
         elif kind == "on_tool_end":
-            await sse_emitter.emit("tool_result", {
-                "tool": event["name"],
-                "result": event["data"].get("output"),
-            })
+            await sse_emitter.emit(
+                "tool_result",
+                {
+                    "tool": event["name"],
+                    "result": event["data"].get("output"),
+                },
+            )
 
         elif kind == "on_chain_end" and event.get("name") == "hitl_gate":
             output: dict[str, Any] = event["data"].get("output") or {}

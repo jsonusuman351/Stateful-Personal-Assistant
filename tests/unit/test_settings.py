@@ -47,16 +47,12 @@ class TestMissingRequiredVar:
 
 
 class TestFallbackModels:
-    def test_fallback_models_malformed_json_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fallback_models_malformed_json_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Non-JSON FALLBACK_MODELS raises ValidationError with a descriptive message."""
         with pytest.raises(ValidationError, match="FALLBACK_MODELS must be valid JSON"):
             _settings(monkeypatch, FALLBACK_MODELS="not-json")
 
-    def test_fallback_models_absent_sets_disabled(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fallback_models_absent_sets_disabled(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Absent FALLBACK_MODELS results in fallback_enabled=False."""
         monkeypatch.delenv("FALLBACK_MODELS", raising=False)
         s = _settings(monkeypatch)
@@ -69,9 +65,7 @@ class TestFallbackModels:
         s = _settings(monkeypatch, FALLBACK_MODELS="[]")
         assert s.fallback_enabled is False
 
-    def test_fallback_models_valid_sets_enabled(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fallback_models_valid_sets_enabled(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A non-empty JSON array enables fallback and exposes the parsed list."""
         s = _settings(monkeypatch, FALLBACK_MODELS='["groq/llama-3-70b"]')
         assert s.fallback_enabled is True

@@ -32,6 +32,7 @@ def _set_env(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(key, value)
     monkeypatch.delenv("FALLBACK_MODELS", raising=False)
     from src.config.settings import get_settings
+
     get_settings.cache_clear()
 
 

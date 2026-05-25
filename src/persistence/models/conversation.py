@@ -16,16 +16,10 @@ class Conversation(Base):
 
     __tablename__ = "conversations"
 
-    id: Mapped[UUID] = mapped_column(
-        Uuid, primary_key=True, default=func.gen_random_uuid()
-    )
-    user_id: Mapped[UUID] = mapped_column(
-        Uuid, nullable=False, index=True
-    )
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=func.gen_random_uuid())
+    user_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(100), nullable=False)
-    active_model: Mapped[str] = mapped_column(
-        String(100), nullable=False, default="gpt-4o-mini"
-    )
+    active_model: Mapped[str] = mapped_column(String(100), nullable=False, default="gpt-4o-mini")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=func.now()
     )

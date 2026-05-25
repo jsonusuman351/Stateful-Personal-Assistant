@@ -77,9 +77,9 @@ async def test_token_event_emitted_on_llm_stream() -> None:
     """on_chat_model_stream with non-empty chunk must produce a 'token' SSE event."""
     chunk = MagicMock()
     chunk.content = "Hello"
-    graph = _make_graph([
-        {"event": "on_chat_model_stream", "name": "llm", "data": {"chunk": chunk}}
-    ])
+    graph = _make_graph(
+        [{"event": "on_chat_model_stream", "name": "llm", "data": {"chunk": chunk}}]
+    )
     emitter = _make_emitter()
 
     from src.agents.runner import run_turn
@@ -116,14 +116,17 @@ async def test_langsmith_failure_does_not_propagate(
     graph = _make_graph([])
     emitter = _make_emitter()
 
-    with patch(
-        "src.agents.runner.LangChainTracer",
-        side_effect=RuntimeError("langsmith unavailable"),
-        create=True,
-    ), patch(
-        "src.agents.runner.LangSmithClient",
-        side_effect=RuntimeError("langsmith unavailable"),
-        create=True,
+    with (
+        patch(
+            "src.agents.runner.LangChainTracer",
+            side_effect=RuntimeError("langsmith unavailable"),
+            create=True,
+        ),
+        patch(
+            "src.agents.runner.LangSmithClient",
+            side_effect=RuntimeError("langsmith unavailable"),
+            create=True,
+        ),
     ):
         from src.agents.runner import run_turn
 

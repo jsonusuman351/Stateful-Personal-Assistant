@@ -44,9 +44,7 @@ _BASE_TEST_ENV: dict[str, str] = {
 
 def pytest_configure(config: pytest.Config) -> None:
     """Register custom markers."""
-    config.addinivalue_line(
-        "markers", "requires_db: mark test as requiring a database connection"
-    )
+    config.addinivalue_line("markers", "requires_db: mark test as requiring a database connection")
 
 
 # ── Database fixtures ─────────────────────────────────────────────────────────
@@ -231,9 +229,7 @@ async def async_client(
     import src.api.main as _main_module
 
     # Configure required settings env vars for this test
-    db_url = os.environ.get(
-        "TEST_DATABASE_URL", "postgresql+asyncpg://u:p@localhost/test_db"
-    )
+    db_url = os.environ.get("TEST_DATABASE_URL", "postgresql+asyncpg://u:p@localhost/test_db")
     env = {**_BASE_TEST_ENV, "DATABASE_URL": db_url}
     for key, val in env.items():
         monkeypatch.setenv(key, val)
@@ -254,9 +250,7 @@ async def async_client(
         from src.agents.graph import get_graph
         from src.tools.registry import load_registry
 
-        registry_path = (
-            Path(__file__).resolve().parent.parent / "config" / "tools.yaml"
-        )
+        registry_path = Path(__file__).resolve().parent.parent / "config" / "tools.yaml"
         if registry_path.exists():
             load_registry(registry_path)
 
@@ -294,9 +288,7 @@ async def async_client(
 
     app.dependency_overrides[get_db] = _test_get_db
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
     # Clean up

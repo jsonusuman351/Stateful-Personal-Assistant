@@ -59,9 +59,7 @@ async def test_only_stale_low_access_deleted(db_session: AsyncSession) -> None:
 
     assert deleted == 1
 
-    surviving = set(
-        (await db_session.execute(select(Conversation.id))).scalars()
-    )
+    surviving = set((await db_session.execute(select(Conversation.id))).scalars())
     assert stale_low.id not in surviving
     assert stale_high.id in surviving
     assert recent_low.id in surviving
@@ -95,9 +93,7 @@ async def test_open_hitl_skipped(db_session: AsyncSession) -> None:
 
     assert deleted == 0
 
-    result = await db_session.execute(
-        select(Conversation).where(Conversation.id == conv.id)
-    )
+    result = await db_session.execute(select(Conversation).where(Conversation.id == conv.id))
     assert result.scalar_one_or_none() is not None
 
 
@@ -127,9 +123,7 @@ async def test_in_progress_session_skipped(db_engine: Any) -> None:
     async with AsyncSession(db_engine, expire_on_commit=False) as lock_session:
         async with lock_session.begin():
             await lock_session.execute(
-                select(Conversation)
-                .where(Conversation.id == conv_id)
-                .with_for_update()
+                select(Conversation).where(Conversation.id == conv_id).with_for_update()
             )
 
             # Session B: retention job — must skip the locked row
@@ -143,9 +137,7 @@ async def test_in_progress_session_skipped(db_engine: Any) -> None:
 
     # Conversation was not deleted
     async with AsyncSession(db_engine, expire_on_commit=False) as verify:
-        result = await verify.execute(
-            select(Conversation).where(Conversation.id == conv_id)
-        )
+        result = await verify.execute(select(Conversation).where(Conversation.id == conv_id))
         assert result.scalar_one_or_none() is not None
 
 
@@ -163,7 +155,5 @@ async def test_user_manual_delete_succeeds(db_session: AsyncSession) -> None:
     repo = ConversationRepository(db_session)
     await repo.delete_conversation(user_id=user_id, conversation_id=conv.id)
 
-    result = await db_session.execute(
-        select(Conversation).where(Conversation.id == conv.id)
-    )
+    result = await db_session.execute(select(Conversation).where(Conversation.id == conv.id))
     assert result.scalar_one_or_none() is None

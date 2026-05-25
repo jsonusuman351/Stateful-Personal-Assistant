@@ -89,9 +89,7 @@ async def test_readiness_passes_after_migrations() -> None:
             return_value=mock_script,
         ),
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/readiness")
 
     assert resp.status_code == 200

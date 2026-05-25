@@ -77,9 +77,7 @@ async def test_post_chat_returns_202() -> None:
             AsyncMock(return_value=QuotaStatus(allowed=True)),
         ),
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.post("/chat", json={"message": "Hello"})
 
     assert resp.status_code == 202
@@ -105,14 +103,10 @@ async def test_post_chat_quota_exceeded_returns_429() -> None:
         patch("src.api.routers.chat.get_redis", return_value=mock_redis),
         patch(
             "src.api.routers.chat.check_and_increment",
-            AsyncMock(
-                return_value=QuotaStatus(allowed=False, quota_type="hourly")
-            ),
+            AsyncMock(return_value=QuotaStatus(allowed=False, quota_type="hourly")),
         ),
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.post("/chat", json={"message": "Hello"})
 
     assert resp.status_code == 429
@@ -133,9 +127,7 @@ async def test_get_stream_wrong_user_returns_403() -> None:
     app.dependency_overrides[get_current_user] = lambda: user
 
     with patch("src.api.routers.chat.get_redis", return_value=mock_redis):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/chat/stream?stream_id=test-stream-id")
 
     assert resp.status_code == 403
@@ -153,9 +145,7 @@ async def test_get_stream_expired_returns_410() -> None:
     app.dependency_overrides[get_current_user] = lambda: user
 
     with patch("src.api.routers.chat.get_redis", return_value=mock_redis):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/chat/stream?stream_id=expired-stream-id")
 
     assert resp.status_code == 410

@@ -190,13 +190,9 @@ async def approve_hitl(
         raise HTTPException(status_code=410, detail="Approval already used or expired")
 
     # Atomic consume — returns None only if a concurrent request won the race
-    consumed = await hitl_repo.consume_approval(
-        approval_uuid, str(current_user.session_id or "")
-    )
+    consumed = await hitl_repo.consume_approval(approval_uuid, str(current_user.session_id or ""))
     if consumed is None:
-        raise HTTPException(
-            status_code=409, detail="Approval was consumed by a concurrent request"
-        )
+        raise HTTPException(status_code=409, detail="Approval was consumed by a concurrent request")
 
     # Append immutable audit log entry
     ip = request.client.host if request.client else None

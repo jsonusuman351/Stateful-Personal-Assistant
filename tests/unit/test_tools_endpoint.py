@@ -37,7 +37,11 @@ def _make_app() -> FastAPI:
 
 
 _MOCK_TOOLS = [
-    {"name": "calculator", "description": "Performs arithmetic calculations.", "is_sensitive": False},
+    {
+        "name": "calculator",
+        "description": "Performs arithmetic calculations.",
+        "is_sensitive": False,
+    },
     {"name": "weather", "description": "Fetches current weather data.", "is_sensitive": False},
     {"name": "web_search", "description": "Searches the web.", "is_sensitive": True},
 ]
@@ -48,9 +52,7 @@ async def test_get_tools_returns_all_registered() -> None:
     app = _make_app()
 
     with patch("src.tools.registry.get_tool_list", return_value=_MOCK_TOOLS):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/tools")
 
     assert resp.status_code == 200
@@ -66,12 +68,12 @@ async def test_get_tools_no_internal_fields() -> None:
     app = _make_app()
 
     with patch("src.tools.registry.get_tool_list", return_value=_MOCK_TOOLS):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/tools")
 
     assert resp.status_code == 200
     allowed_keys = {"name", "description", "is_sensitive"}
     for item in resp.json():
-        assert set(item.keys()) == allowed_keys, f"Unexpected keys: {set(item.keys()) - allowed_keys}"
+        assert set(item.keys()) == allowed_keys, (
+            f"Unexpected keys: {set(item.keys()) - allowed_keys}"
+        )

@@ -173,9 +173,7 @@ class HITLRepository:
         result = await self._session.execute(stmt)
         return result.scalars().one_or_none()
 
-    async def get_open_approval_ids_for_conversation(
-        self, conversation_id: UUID
-    ) -> list[UUID]:
+    async def get_open_approval_ids_for_conversation(self, conversation_id: UUID) -> list[UUID]:
         """Return IDs of approvals that are neither used nor expired.
 
         Used by the retention job to find conversations with pending
