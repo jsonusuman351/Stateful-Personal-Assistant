@@ -16,7 +16,6 @@ from typing import Any
 
 import pytest
 
-
 # ── SSE parsing ───────────────────────────────────────────────────────────────
 
 
@@ -143,7 +142,7 @@ async def test_weather_tool_chat_full_turn(
         def __init__(self, **kwargs: Any) -> None:
             pass
 
-        def bind_tools(self, tools: Any) -> "_SmartMock":
+        def bind_tools(self, tools: Any) -> _SmartMock:
             """Return self so that llm.bind_tools(schemas).ainvoke(msgs) works."""
             return self
 
@@ -284,7 +283,7 @@ async def test_event_ids_monotonically_increasing(
 
     assert ids[0] == 1, f"First event ID must be 1, got {ids[0]}"
 
-    for i, (a, b) in enumerate(zip(ids, ids[1:])):
+    for i, (a, b) in enumerate(zip(ids, ids[1:], strict=False)):
         assert b > a, (
             f"Event IDs not strictly increasing at index {i}: {ids}"
         )

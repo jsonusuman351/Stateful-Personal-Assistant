@@ -226,8 +226,9 @@ async def async_client(
     Yields:
         ``httpx.AsyncClient`` configured to make requests to the test app.
     """
-    import src.api.main as _main_module
     from httpx import ASGITransport, AsyncClient
+
+    import src.api.main as _main_module
 
     # Configure required settings env vars for this test
     db_url = os.environ.get(
@@ -247,10 +248,11 @@ async def async_client(
     @asynccontextmanager
     async def _test_lifespan(app: Any) -> AsyncGenerator[None, None]:
         """Minimal lifespan for integration tests."""
-        from src.tools.registry import load_registry
-        from src.agents.graph import get_graph
-        import src.persistence.checkpointer as cp_module
         from langgraph.checkpoint.memory import MemorySaver
+
+        import src.persistence.checkpointer as cp_module
+        from src.agents.graph import get_graph
+        from src.tools.registry import load_registry
 
         registry_path = (
             Path(__file__).resolve().parent.parent / "config" / "tools.yaml"

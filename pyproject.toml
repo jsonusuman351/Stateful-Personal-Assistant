@@ -39,6 +39,8 @@ ignore = [
 "tests/**/*.py" = ["S101", "B011"]
 # Alembic env boilerplate is auto-generated
 "alembic/env.py" = ["E402", "F401"]
+# FastAPI uses Depends() in default arguments — this is the idiomatic DI pattern
+"src/api/**/*.py" = ["B008"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]

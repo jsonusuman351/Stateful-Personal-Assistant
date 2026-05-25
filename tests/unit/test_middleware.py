@@ -6,7 +6,6 @@ import json
 
 import pytest
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
 from httpx import ASGITransport, AsyncClient
 
 _REQUIRED_ENV: dict[str, str] = {

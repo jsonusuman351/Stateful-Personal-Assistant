@@ -5,7 +5,8 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -19,7 +20,7 @@ from src.persistence.checkpointer import build_guest_thread_id, build_thread_id
 from src.persistence.redis_client import get_redis
 from src.quota.limiter import check_and_increment
 from src.streaming.emitter import SSEEmitter
-from src.streaming.replay import get_events_after, validate_stream_ownership
+from src.streaming.replay import get_events_after
 
 router = APIRouter(tags=["chat"])
 

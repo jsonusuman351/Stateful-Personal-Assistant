@@ -68,7 +68,7 @@ class MockOpenAI:
             def __init__(self, **kwargs: object) -> None:
                 pass
 
-            def bind_tools(self, tools: object) -> "_MockChatOpenAI":
+            def bind_tools(self, tools: object) -> _MockChatOpenAI:
                 """Return self to allow ``llm.bind_tools(schemas).ainvoke(msgs)``."""
                 return self
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 
-from simpleeval import EvalWithCompoundTypes, NameNotDefined
+from simpleeval import EvalWithCompoundTypes
 
 
 class CalculatorTool:

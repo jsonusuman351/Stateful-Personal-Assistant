@@ -14,9 +14,6 @@ import json
 import time
 from typing import Any
 
-import pytest
-
-
 # ── SSE parsing ───────────────────────────────────────────────────────────────
 
 
@@ -142,7 +139,7 @@ async def test_reconnect_replays_missed_events(
 
     # IDs must be strictly increasing
     ids = [e["id"] for e in replayed]
-    for i, (a, b) in enumerate(zip(ids, ids[1:])):
+    for i, (a, b) in enumerate(zip(ids, ids[1:], strict=False)):
         assert b > a, f"Replayed IDs not strictly increasing at index {i}: {ids}"
 
 

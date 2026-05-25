@@ -83,7 +83,6 @@ async def test_blacklisted_token_returns_401() -> None:
 
     from src.api.dependencies import get_current_user
     from src.auth.jwt import create_access_token
-    from src.auth.blacklist import blacklist_token
 
     user_id = str(uuid.uuid4())
     jti = str(uuid.uuid4())
@@ -190,6 +189,7 @@ async def test_login_success() -> None:
 async def test_login_invalid_password_identical_response() -> None:
     """Wrong-email and wrong-password login attempts must return identical 401 bodies."""
     import uuid
+
     from src.auth.password import hash_password
 
     mock_user = MagicMock()

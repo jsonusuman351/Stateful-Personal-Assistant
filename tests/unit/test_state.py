@@ -4,17 +4,12 @@ from __future__ import annotations
 
 from typing import get_args, get_type_hints
 
-import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
 from src.agents.state import (
     AgentState,
-    ApprovalState,
-    ErrorState,
     ToolCall,
-    ToolResult,
 )
-
 
 # ── T-022: AgentState ────────────────────────────────────────────────────────
 

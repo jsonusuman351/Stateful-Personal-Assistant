@@ -20,7 +20,6 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-
 # ── SSE parsing ───────────────────────────────────────────────────────────────
 
 
@@ -128,7 +127,7 @@ def _make_hitl_mock() -> type:
         def __init__(self, **kwargs: Any) -> None:
             pass
 
-        def bind_tools(self, tools: Any) -> "_HITLMock":
+        def bind_tools(self, tools: Any) -> _HITLMock:
             return self
 
         async def ainvoke(self, messages: Any) -> AIMessage:
