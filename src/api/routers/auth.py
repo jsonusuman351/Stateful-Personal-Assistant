@@ -64,7 +64,7 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Helpers ──────────────────────────────────────────────────────────────────
 
 
 def _sha256(value: str) -> str:
@@ -78,7 +78,7 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-# ── POST /auth/guest ──────────────────────────────────────────────────────────
+# ── POST /auth/guest ────────────────────────────────────────────────────────
 
 
 @router.post("/guest", response_model=GuestTokenResponse)
@@ -94,7 +94,7 @@ async def issue_guest_token() -> GuestTokenResponse:
     return GuestTokenResponse(access_token=token, session_id=session_id)
 
 
-# ── POST /auth/login ──────────────────────────────────────────────────────────
+# ── POST /auth/login ────────────────────────────────────────────────────────
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -182,7 +182,7 @@ async def login(
     return TokenResponse(access_token=access_token, refresh_token=refresh_token_str)
 
 
-# ── POST /auth/refresh ────────────────────────────────────────────────────────
+# ── POST /auth/refresh ───────────────────────────────────────────────────────
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -196,8 +196,8 @@ async def refresh_tokens(
     """
     try:
         claims = decode_token(body.refresh_token)
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+    except JWTError as err:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token") from err
 
     if claims.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Not a refresh token")
@@ -206,8 +206,8 @@ async def refresh_tokens(
     user_id_str: str = claims.get("user_id", "")
     try:
         jti_uuid = uuid.UUID(jti_str)
-    except ValueError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    except ValueError as err:
+        raise HTTPException(status_code=401, detail="Invalid token") from err
 
     repo = UserRepository(db)
     stored = await repo.get_valid_refresh_token(jti_uuid)
@@ -231,7 +231,7 @@ async def refresh_tokens(
     return TokenResponse(access_token=new_access_token, refresh_token=new_refresh_token)
 
 
-# ── POST /auth/logout ─────────────────────────────────────────────────────────
+# ── POST /auth/logout ────────────────────────────────────────────────────────
 
 
 @router.post("/logout", status_code=204)
