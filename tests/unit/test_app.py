@@ -112,3 +112,252 @@ def test_cors_not_wildcard_in_production() -> None:
     # If CORSMiddleware is not found in user_middleware, check the built stack
     # (FastAPI may have already compiled it)
     pass
+
+
+# ── Background task tests ─────────────────────────────────────────────────────
+
+
+async def test_hitl_timeout_sweeper_logs_expired_approvals() -> None:
+    """_hitl_timeout_sweeper expires approvals and inserts audit log entries."""
+    import asyncio
+    from collections.abc import AsyncGenerator
+    from contextlib import asynccontextmanager
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from src.api.main import _hitl_timeout_sweeper
+
+    mock_approval = MagicMock()
+    mock_approval.id = "approval-1"
+    mock_approval.user_id = "user-1"
+    mock_approval.conversation_id = "conv-1"
+    mock_approval.tool_name = "dangerous_tool"
+
+    mock_repo = AsyncMock()
+    mock_repo.expire_stale_approvals = AsyncMock(return_value=[mock_approval])
+    mock_repo.insert_audit_log = AsyncMock()
+
+    mock_session = AsyncMock()
+
+    @asynccontextmanager
+    async def _fake_db() -> AsyncGenerator[AsyncMock, None]:
+        yield mock_session
+
+    with (
+        patch("src.persistence.database.get_db_session", _fake_db),
+        patch(
+            "src.persistence.repositories.hitl_repo.HITLRepository",
+            return_value=mock_repo,
+        ),
+        patch("asyncio.sleep", side_effect=asyncio.CancelledError),
+    ):
+        with pytest.raises(asyncio.CancelledError):
+            await _hitl_timeout_sweeper()
+
+    mock_repo.expire_stale_approvals.assert_awaited_once()
+    mock_repo.insert_audit_log.assert_awaited_once()
+
+
+async def test_hitl_timeout_sweeper_no_expired_approvals() -> None:
+    """_hitl_timeout_sweeper does nothing when no approvals have expired."""
+    import asyncio
+    from collections.abc import AsyncGenerator
+    from contextlib import asynccontextmanager
+    from unittest.mock import AsyncMock, patch
+
+    from src.api.main import _hitl_timeout_sweeper
+
+    mock_repo = AsyncMock()
+    mock_repo.expire_stale_approvals = AsyncMock(return_value=[])
+    mock_session = AsyncMock()
+
+    @asynccontextmanager
+    async def _fake_db() -> AsyncGenerator[AsyncMock, None]:
+        yield mock_session
+
+    with (
+        patch("src.persistence.database.get_db_session", _fake_db),
+        patch(
+            "src.persistence.repositories.hitl_repo.HITLRepository",
+            return_value=mock_repo,
+        ),
+        patch("asyncio.sleep", side_effect=asyncio.CancelledError),
+    ):
+        with pytest.raises(asyncio.CancelledError):
+            await _hitl_timeout_sweeper()
+
+    mock_repo.insert_audit_log.assert_not_awaited()
+
+
+async def test_hitl_timeout_sweeper_swallows_exception() -> None:
+    """_hitl_timeout_sweeper logs DB errors but does not propagate them."""
+    import asyncio
+    from collections.abc import AsyncGenerator
+    from contextlib import asynccontextmanager
+    from unittest.mock import patch
+
+    from src.api.main import _hitl_timeout_sweeper
+
+    @asynccontextmanager
+    async def _bad_db() -> AsyncGenerator[None, None]:
+        raise RuntimeError("DB unavailable")
+        yield
+
+    with (
+        patch("src.persistence.database.get_db_session", _bad_db),
+        patch("asyncio.sleep", side_effect=asyncio.CancelledError),
+    ):
+        with pytest.raises(asyncio.CancelledError):
+            await _hitl_timeout_sweeper()
+        # If we reach here, the RuntimeError was swallowed — pass
+
+
+async def test_conversation_retention_job_purges_stale() -> None:
+    """_conversation_retention_job calls delete_stale_conversations and logs count."""
+    import asyncio
+    from collections.abc import AsyncGenerator
+    from contextlib import asynccontextmanager
+    from unittest.mock import AsyncMock, patch
+
+    from src.api.main import _conversation_retention_job
+
+    mock_repo = AsyncMock()
+    mock_repo.delete_stale_conversations = AsyncMock(return_value=3)
+    mock_session = AsyncMock()
+
+    @asynccontextmanager
+    async def _fake_db() -> AsyncGenerator[AsyncMock, None]:
+        yield mock_session
+
+    with (
+        patch("src.persistence.database.get_db_session", _fake_db),
+        patch(
+            "src.persistence.repositories.conversation_repo.ConversationRepository",
+            return_value=mock_repo,
+        ),
+        patch("asyncio.sleep", side_effect=asyncio.CancelledError),
+    ):
+        with pytest.raises(asyncio.CancelledError):
+            await _conversation_retention_job()
+
+    mock_repo.delete_stale_conversations.assert_awaited_once()
+
+
+async def test_conversation_retention_job_swallows_exception() -> None:
+    """_conversation_retention_job logs errors without re-raising."""
+    import asyncio
+    from collections.abc import AsyncGenerator
+    from contextlib import asynccontextmanager
+    from unittest.mock import patch
+
+    from src.api.main import _conversation_retention_job
+
+    @asynccontextmanager
+    async def _bad_db() -> AsyncGenerator[None, None]:
+        raise RuntimeError("DB error")
+        yield
+
+    with (
+        patch("src.persistence.database.get_db_session", _bad_db),
+        patch("asyncio.sleep", side_effect=asyncio.CancelledError),
+    ):
+        with pytest.raises(asyncio.CancelledError):
+            await _conversation_retention_job()
+
+
+# ── Lifespan tests ────────────────────────────────────────────────────────────
+
+
+async def _noop_bg() -> None:
+    """No-op coroutine used in place of real background tasks during lifespan tests."""
+    pass
+
+
+async def test_lifespan_sets_ready_true_on_startup() -> None:
+    """lifespan must set app.state.ready=True after successful startup."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from fastapi import FastAPI
+
+    from src.api.main import lifespan
+
+    mock_proc = MagicMock()
+    mock_proc.returncode = 0
+    mock_proc.stdout = "up to date"
+    mock_proc.stderr = ""
+
+    mock_engine = AsyncMock()
+    mock_engine.dispose = AsyncMock()
+
+    app = FastAPI()
+
+    with (
+        patch("subprocess.run", return_value=mock_proc),
+        patch("src.persistence.checkpointer.setup_checkpointer", AsyncMock()),
+        patch("src.tools.registry.load_registry"),
+        patch("src.persistence.checkpointer.teardown_checkpointer", AsyncMock()),
+        patch("src.persistence.database.get_engine", return_value=mock_engine),
+        patch("src.persistence.redis_client.close_redis", AsyncMock()),
+        patch("src.utils.logging.configure_logging"),
+        patch("src.api.main._hitl_timeout_sweeper", _noop_bg),
+        patch("src.api.main._conversation_retention_job", _noop_bg),
+    ):
+        async with lifespan(app):
+            assert app.state.ready is True
+
+
+async def test_lifespan_exits_on_migration_failure() -> None:
+    """lifespan calls sys.exit(1) when Alembic migration returns non-zero exit code."""
+    from unittest.mock import MagicMock, patch
+
+    from fastapi import FastAPI
+
+    from src.api.main import lifespan
+
+    mock_proc = MagicMock()
+    mock_proc.returncode = 1
+    mock_proc.stderr = "migration failed"
+
+    app = FastAPI()
+
+    with (
+        patch("subprocess.run", return_value=mock_proc),
+        patch("src.utils.logging.configure_logging"),
+        pytest.raises(SystemExit),
+    ):
+        async with lifespan(app):
+            pass  # should not reach here
+
+
+async def test_lifespan_shutdown_disposes_engine() -> None:
+    """lifespan dispose() is called during graceful shutdown."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from fastapi import FastAPI
+
+    from src.api.main import lifespan
+
+    mock_proc = MagicMock()
+    mock_proc.returncode = 0
+    mock_proc.stdout = ""
+    mock_proc.stderr = ""
+
+    mock_engine = AsyncMock()
+    mock_engine.dispose = AsyncMock()
+
+    app = FastAPI()
+
+    with (
+        patch("subprocess.run", return_value=mock_proc),
+        patch("src.persistence.checkpointer.setup_checkpointer", AsyncMock()),
+        patch("src.tools.registry.load_registry"),
+        patch("src.persistence.checkpointer.teardown_checkpointer", AsyncMock()),
+        patch("src.persistence.database.get_engine", return_value=mock_engine),
+        patch("src.persistence.redis_client.close_redis", AsyncMock()),
+        patch("src.utils.logging.configure_logging"),
+        patch("src.api.main._hitl_timeout_sweeper", _noop_bg),
+        patch("src.api.main._conversation_retention_job", _noop_bg),
+    ):
+        async with lifespan(app):
+            pass
+
+    mock_engine.dispose.assert_awaited_once()

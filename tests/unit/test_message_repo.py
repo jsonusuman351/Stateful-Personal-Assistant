@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -156,5 +157,72 @@ class TestListMessages:
         conv = await _make_conversation(db_session, user_id)
 
         messages = await repo.list_messages(user_id, conv.id)
+
+        assert messages == []
+
+
+# ── Mock-based unit tests (no real DB required) ───────────────────────────────
+
+
+class TestMessageRepoMocked:
+    """Covers MessageRepository method bodies via AsyncMock."""
+
+    def _make_repo(self) -> tuple[MessageRepository, AsyncMock]:
+        mock_session = AsyncMock()
+        mock_session.add = MagicMock()
+        mock_session.flush = AsyncMock()
+        mock_session.execute = AsyncMock()
+        return MessageRepository(mock_session), mock_session
+
+    async def test_save_message_adds_and_flushes(self) -> None:
+        """save_message adds a Message row, issues the count UPDATE, and flushes."""
+        repo, mock_session = self._make_repo()
+        mock_session.execute.return_value = MagicMock()
+        conv_id = uuid4()
+        user_id = uuid4()
+
+        msg = await repo.save_message(conv_id, user_id, "user", "Hello", None, 0)
+
+        mock_session.add.assert_called_once()
+        mock_session.execute.assert_awaited_once()
+        mock_session.flush.assert_awaited_once()
+        assert msg.conversation_id == conv_id
+        assert msg.user_id == user_id
+        assert msg.role == "user"
+        assert msg.content == "Hello"
+        assert msg.tool_name is None
+        assert msg.turn_index == 0
+
+    async def test_save_message_tool_role(self) -> None:
+        """save_message stores tool_name when role='tool'."""
+        repo, mock_session = self._make_repo()
+        mock_session.execute.return_value = MagicMock()
+
+        msg = await repo.save_message(uuid4(), uuid4(), "tool", '{"x":1}', "calculator", 1)
+
+        assert msg.role == "tool"
+        assert msg.tool_name == "calculator"
+
+    async def test_list_messages_returns_ordered_list(self) -> None:
+        """list_messages returns all messages from the session result."""
+        repo, mock_session = self._make_repo()
+        msg1 = MagicMock()
+        msg2 = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value = iter([msg1, msg2])
+        mock_session.execute.return_value = mock_result
+
+        messages = await repo.list_messages(uuid4(), uuid4())
+
+        assert messages == [msg1, msg2]
+
+    async def test_list_messages_empty(self) -> None:
+        """list_messages returns [] when no messages are found."""
+        repo, mock_session = self._make_repo()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value = iter([])
+        mock_session.execute.return_value = mock_result
+
+        messages = await repo.list_messages(uuid4(), uuid4())
 
         assert messages == []

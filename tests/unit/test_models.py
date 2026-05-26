@@ -201,3 +201,12 @@ class TestHITLAuditLogModel:
         for column in mapper.columns:
             # SQLAlchemy columns shouldn't have onupdate logic for this table
             assert not hasattr(column, "onupdate") or column.onupdate is None
+
+
+class TestTokenModuleReexport:
+    def test_token_module_exports_refresh_token(self) -> None:
+        """token.py re-exports RefreshToken so callers can import from either path."""
+        from src.persistence.models import token as token_mod
+
+        assert token_mod.RefreshToken is RefreshToken
+        assert "RefreshToken" in token_mod.__all__

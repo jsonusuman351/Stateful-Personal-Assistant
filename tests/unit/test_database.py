@@ -69,3 +69,84 @@ class TestSessionRollback:
 
         mock_session.rollback.assert_awaited_once()
         mock_session.commit.assert_not_awaited()
+
+
+class TestGetEngineSingleton:
+    async def test_get_engine_creates_engine_on_first_call(
+        self, monkeypatch: pytest.MonkeyPatch, base_settings: Settings
+    ) -> None:
+        """get_engine() initialises _engine on the first call and returns it."""
+        import src.persistence.database as db_mod
+        from src.persistence.database import get_engine
+
+        original = db_mod._engine
+        try:
+            db_mod._engine = None  # force first-call path
+            with patch(
+                "src.persistence.database.get_settings",
+                return_value=base_settings,
+            ):
+                engine = get_engine()
+            assert engine is not None
+            assert db_mod._engine is engine
+        finally:
+            db_mod._engine = original
+
+    async def test_get_engine_returns_same_instance_on_second_call(
+        self, monkeypatch: pytest.MonkeyPatch, base_settings: Settings
+    ) -> None:
+        """get_engine() returns the cached singleton on subsequent calls."""
+        import src.persistence.database as db_mod
+        from src.persistence.database import get_engine
+
+        original = db_mod._engine
+        try:
+            db_mod._engine = None
+            with patch("src.persistence.database.get_settings", return_value=base_settings):
+                e1 = get_engine()
+                e2 = get_engine()
+            assert e1 is e2
+        finally:
+            db_mod._engine = original
+
+
+class TestGetSessionFactorySingleton:
+    async def test_get_session_factory_creates_factory_on_first_call(
+        self, monkeypatch: pytest.MonkeyPatch, base_settings: Settings
+    ) -> None:
+        """_get_session_factory() initialises _session_factory on first call."""
+        import src.persistence.database as db_mod
+        from src.persistence.database import _get_session_factory
+
+        original_factory = db_mod._session_factory
+        original_engine = db_mod._engine
+        try:
+            db_mod._session_factory = None
+            db_mod._engine = None
+            with patch("src.persistence.database.get_settings", return_value=base_settings):
+                factory = _get_session_factory()
+            assert factory is not None
+            assert db_mod._session_factory is factory
+        finally:
+            db_mod._session_factory = original_factory
+            db_mod._engine = original_engine
+
+
+class TestGetDbSessionCommit:
+    async def test_session_commits_on_clean_exit(self) -> None:
+        """get_db_session() must commit when no exception is raised."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=False)
+
+        mock_factory = MagicMock(return_value=mock_session)
+
+        with patch(
+            "src.persistence.database._get_session_factory",
+            return_value=mock_factory,
+        ):
+            async with get_db_session() as _session:
+                pass  # clean exit
+
+        mock_session.commit.assert_awaited_once()
+        mock_session.rollback.assert_not_awaited()

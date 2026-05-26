@@ -101,9 +101,7 @@ omit = [
 ]
 
 [tool.coverage.report]
-# Temporary: lowered from 80% while DB-backed repositories lack integration tests.
-# Raise back to 80% incrementally as tests/integration/ coverage grows.
-fail_under = 74
+fail_under = 80
 show_missing = true
 skip_empty = true
 exclude_lines = [

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -288,3 +289,123 @@ class TestNoRawSqlStringConcatenation:
                         pytest.fail(
                             f"Found SQL-like string concatenation in user_repo.py: {concat_value}"
                         )
+
+
+# ── Mock-based unit tests (no real DB required) ───────────────────────────────
+
+
+class TestUserRepoMocked:
+    """Covers all UserRepository method bodies via AsyncMock."""
+
+    def _make_repo(self) -> tuple[UserRepository, AsyncMock]:
+        mock_session = AsyncMock()
+        mock_session.add = MagicMock()
+        mock_session.flush = AsyncMock()
+        return UserRepository(mock_session), mock_session
+
+    async def test_get_user_by_email_returns_user(self) -> None:
+        """get_user_by_email returns the User row from the session."""
+        repo, mock_session = self._make_repo()
+        mock_user = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_user
+        mock_session.execute.return_value = mock_result
+
+        result = await repo.get_user_by_email("alice@example.com")
+
+        assert result is mock_user
+
+    async def test_get_user_by_email_returns_none(self) -> None:
+        """get_user_by_email returns None when no user is found."""
+        repo, mock_session = self._make_repo()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        result = await repo.get_user_by_email("nobody@example.com")
+
+        assert result is None
+
+    async def test_create_user_adds_and_flushes(self) -> None:
+        """create_user adds a User to the session and flushes."""
+        repo, mock_session = self._make_repo()
+
+        user = await repo.create_user("new@example.com", "hash123")  # pragma: allowlist secret
+
+        mock_session.add.assert_called_once()
+        mock_session.flush.assert_awaited_once()
+        assert user.email == "new@example.com"
+
+    async def test_increment_failed_logins_returns_new_count(self) -> None:
+        """increment_failed_logins returns the updated counter value."""
+        repo, mock_session = self._make_repo()
+        mock_result = MagicMock()
+        mock_result.scalar_one.return_value = 3
+        mock_session.execute.return_value = mock_result
+
+        count = await repo.increment_failed_logins(uuid4())
+
+        assert count == 3
+
+    async def test_reset_failed_logins_executes(self) -> None:
+        """reset_failed_logins issues an UPDATE statement."""
+        repo, mock_session = self._make_repo()
+        mock_session.execute.return_value = MagicMock()
+
+        await repo.reset_failed_logins(uuid4())
+
+        mock_session.execute.assert_awaited_once()
+
+    async def test_lock_user_executes(self) -> None:
+        """lock_user issues an UPDATE statement with the given timestamp."""
+        repo, mock_session = self._make_repo()
+        mock_session.execute.return_value = MagicMock()
+        until = datetime.now(timezone.utc) + timedelta(minutes=15)
+
+        await repo.lock_user(uuid4(), until)
+
+        mock_session.execute.assert_awaited_once()
+
+    async def test_store_refresh_token_adds_and_flushes(self) -> None:
+        """store_refresh_token adds a RefreshToken and flushes."""
+        repo, mock_session = self._make_repo()
+        jti = uuid4()
+        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+
+        token = await repo.store_refresh_token(jti, uuid4(), expires_at)
+
+        mock_session.add.assert_called_once()
+        mock_session.flush.assert_awaited_once()
+        assert token.jti == jti
+
+    async def test_revoke_refresh_token_executes(self) -> None:
+        """revoke_refresh_token issues an UPDATE statement."""
+        repo, mock_session = self._make_repo()
+        mock_session.execute.return_value = MagicMock()
+
+        await repo.revoke_refresh_token(uuid4())
+
+        mock_session.execute.assert_awaited_once()
+
+    async def test_get_valid_refresh_token_found(self) -> None:
+        """get_valid_refresh_token returns the token when one is found."""
+        repo, mock_session = self._make_repo()
+        mock_token = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_token
+        mock_session.execute.return_value = mock_result
+
+        result = await repo.get_valid_refresh_token(uuid4())
+
+        assert result is mock_token
+
+    async def test_get_valid_refresh_token_not_found(self) -> None:
+        """get_valid_refresh_token returns None for expired/revoked token."""
+        repo, mock_session = self._make_repo()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        result = await repo.get_valid_refresh_token(uuid4())
+
+        assert result is None

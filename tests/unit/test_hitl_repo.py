@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -257,5 +258,118 @@ class TestGetOpenApprovalIds:
         await _make_approval(db_session, conversation_id=conv_a)
 
         ids = await repo.get_open_approval_ids_for_conversation(conv_b)
+
+        assert ids == []
+
+
+# ── Mock-based unit tests (no real DB required) ───────────────────────────────
+
+
+class TestHITLRepoMocked:
+    """Covers HITLRepository method bodies via AsyncMock."""
+
+    def _make_repo(self) -> tuple[HITLRepository, AsyncMock]:
+        mock_session = AsyncMock()
+        mock_session.add = MagicMock()
+        mock_session.flush = AsyncMock()
+        mock_session.execute = AsyncMock()
+        return HITLRepository(mock_session), mock_session
+
+    async def test_create_approval_adds_and_flushes(self) -> None:
+        """create_approval inserts a row and returns its UUID."""
+        repo, mock_session = self._make_repo()
+
+        approval_id = await repo.create_approval(
+            conversation_id=uuid4(),
+            user_id=uuid4(),
+            tool_name="send_email",
+            thread_id="t-1",
+            checkpoint_id="cp-1",
+        )
+
+        assert isinstance(approval_id, UUID)
+        mock_session.add.assert_called_once()
+        mock_session.flush.assert_awaited_once()
+
+    async def test_create_approval_guest_user_none(self) -> None:
+        """create_approval accepts user_id=None for guest sessions."""
+        repo, mock_session = self._make_repo()
+
+        approval_id = await repo.create_approval(
+            conversation_id=uuid4(),
+            user_id=None,
+            tool_name="tool",
+            thread_id="t",
+            checkpoint_id="c",
+        )
+
+        assert isinstance(approval_id, UUID)
+
+    async def test_consume_approval_returns_approval(self) -> None:
+        """consume_approval returns the HITLApproval row on success."""
+        repo, mock_session = self._make_repo()
+        mock_approval = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.one_or_none.return_value = mock_approval
+        mock_session.execute.return_value = mock_result
+
+        result = await repo.consume_approval(uuid4(), "session-1")
+
+        assert result is mock_approval
+
+    async def test_consume_approval_returns_none_when_already_used(self) -> None:
+        """consume_approval returns None when the UPDATE matches no rows."""
+        repo, mock_session = self._make_repo()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        result = await repo.consume_approval(uuid4(), "session-x")
+
+        assert result is None
+
+    async def test_get_approval_found(self) -> None:
+        """get_approval returns the approval row when found."""
+        repo, mock_session = self._make_repo()
+        mock_approval = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.one_or_none.return_value = mock_approval
+        mock_session.execute.return_value = mock_result
+
+        result = await repo.get_approval(uuid4())
+
+        assert result is mock_approval
+
+    async def test_get_approval_not_found(self) -> None:
+        """get_approval returns None when the ID does not exist."""
+        repo, mock_session = self._make_repo()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        result = await repo.get_approval(uuid4())
+
+        assert result is None
+
+    async def test_get_open_approval_ids_returns_list(self) -> None:
+        """get_open_approval_ids_for_conversation returns a list of UUIDs."""
+        repo, mock_session = self._make_repo()
+        open_id = uuid4()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value = iter([open_id])
+        mock_session.execute.return_value = mock_result
+
+        ids = await repo.get_open_approval_ids_for_conversation(uuid4())
+
+        assert ids == [open_id]
+
+    async def test_get_open_approval_ids_empty(self) -> None:
+        """get_open_approval_ids_for_conversation returns [] when none are open."""
+        repo, mock_session = self._make_repo()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value = iter([])
+        mock_session.execute.return_value = mock_result
+
+        ids = await repo.get_open_approval_ids_for_conversation(uuid4())
 
         assert ids == []
