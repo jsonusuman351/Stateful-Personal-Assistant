@@ -385,3 +385,145 @@ async def test_guest_sessions_forbidden(
     assert resp.status_code == 403, (
         f"Expected 403 for guest on GET /sessions, got {resp.status_code}: {resp.text}"
     )
+
+
+# ── T-052 tests ───────────────────────────────────────────────────────────────
+
+
+async def test_guest_no_db_writes(
+    async_client: Any,
+    db_engine: Any,
+) -> None:
+    """After a complete guest turn, zero rows exist in conversations/messages tables (FR-21).
+
+    Guests rely entirely on Redis + LangGraph in-memory state; the chat flow
+    must not create any PostgreSQL rows for guest sessions.
+    """
+    from sqlalchemy import func, select
+
+    from src.persistence.models.conversation import Conversation
+    from src.persistence.models.message import Message
+
+    guest_resp = await async_client.post("/auth/guest")
+    assert guest_resp.status_code == 200, f"Guest auth failed: {guest_resp.text}"
+    guest_token = guest_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {guest_token}"}
+
+    # Complete a full guest turn
+    post_resp = await async_client.post("/chat", json={"message": "Hello"}, headers=headers)
+    assert post_resp.status_code == 202, f"POST /chat failed: {post_resp.text}"
+    stream_url: str = post_resp.json()["stream_url"]
+    stream_resp = await async_client.get(stream_url, headers=headers, timeout=30.0)
+    assert stream_resp.status_code == 200, f"GET stream failed: {stream_resp.text}"
+
+    # Assert no rows written to PostgreSQL
+    async with AsyncSession(db_engine, expire_on_commit=False) as session:
+        conv_count = await session.scalar(select(func.count()).select_from(Conversation))
+        msg_count = await session.scalar(select(func.count()).select_from(Message))
+
+    assert conv_count == 0, f"Expected 0 conversations after guest turn, found {conv_count}"
+    assert msg_count == 0, f"Expected 0 messages after guest turn, found {msg_count}"
+
+
+async def test_guest_expired_key_returns_410(
+    async_client: Any,
+    redis_client: Any,
+) -> None:
+    """Deleting the Redis stream owner key causes GET /chat/stream to return HTTP 410 (FR-21).
+
+    Simulates natural TTL expiry by removing the ownership key before the
+    stream is consumed.  Clients use the 410 status to distinguish expiry
+    from an access-denied 403.
+    """
+    guest_resp = await async_client.post("/auth/guest")
+    assert guest_resp.status_code == 200, f"Guest auth failed: {guest_resp.text}"
+    guest_token = guest_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {guest_token}"}
+
+    # POST /chat creates stream context and owner key in Redis
+    post_resp = await async_client.post("/chat", json={"message": "Hello"}, headers=headers)
+    assert post_resp.status_code == 202, f"POST /chat failed: {post_resp.text}"
+    stream_url: str = post_resp.json()["stream_url"]
+
+    # Extract stream_id from URL: /chat/stream?stream_id=<uuid>
+    stream_id = stream_url.split("stream_id=")[1]
+
+    # Simulate TTL expiry by deleting the Redis owner key
+    await redis_client.delete(f"stream:{stream_id}:owner")
+
+    # GET /chat/stream must return 410 (expired), not 403 (forbidden)
+    stream_resp = await async_client.get(stream_url, headers=headers, timeout=10.0)
+    assert stream_resp.status_code == 410, (
+        f"Expected 410 after stream key expiry, got {stream_resp.status_code}: {stream_resp.text}"
+    )
+
+
+async def test_two_guests_independent_quotas(
+    async_client: Any,
+    redis_client: Any,
+) -> None:
+    """Two guests with different session IDs have independent per-session quota counters (FR-31).
+
+    Verifies that completing a turn for guest A increments only A's Redis
+    quota key, leaving guest B's quota key untouched.
+    """
+    # Create two independent guest sessions (each gets a unique session_id)
+    resp_a = await async_client.post("/auth/guest")
+    resp_b = await async_client.post("/auth/guest")
+    assert resp_a.status_code == 200 and resp_b.status_code == 200
+
+    session_id_a: str = resp_a.json()["session_id"]
+    session_id_b: str = resp_b.json()["session_id"]
+    assert session_id_a != session_id_b, "Guest sessions must have unique session IDs"
+
+    headers_a = {"Authorization": f"Bearer {resp_a.json()['access_token']}"}
+
+    # Complete a full turn for guest A only
+    post_resp = await async_client.post("/chat", json={"message": "Hello"}, headers=headers_a)
+    assert post_resp.status_code == 202, f"POST /chat (guest A) failed: {post_resp.text}"
+    stream_url: str = post_resp.json()["stream_url"]
+    stream_resp = await async_client.get(stream_url, headers=headers_a, timeout=30.0)
+    assert stream_resp.status_code == 200, f"GET stream (guest A) failed: {stream_resp.text}"
+
+    # Guest A's per-session request counter must have been incremented
+    key_a = f"quota:{session_id_a}:4h:requests"
+    count_a = await redis_client.get(key_a)
+    assert count_a is not None and int(count_a) >= 1, (
+        f"Guest A's quota key '{key_a}' not incremented after turn: {count_a}"
+    )
+
+    # Guest B's per-session counter must be untouched
+    key_b = f"quota:{session_id_b}:4h:requests"
+    count_b = await redis_client.get(key_b)
+    assert count_b is None or int(count_b) == 0, (
+        f"Guest B's quota was unexpectedly affected: {count_b}"
+    )
+
+
+async def test_guest_stream_cross_session_403(
+    async_client: Any,
+) -> None:
+    """A guest SSE stream accessed with a different guest token returns HTTP 403 (FR-21).
+
+    Each stream is owned by the session ID that created it.  Another guest
+    must not be able to consume or replay the stream.
+    """
+    # Guest A: create a pending stream
+    resp_a = await async_client.post("/auth/guest")
+    assert resp_a.status_code == 200
+    headers_a = {"Authorization": f"Bearer {resp_a.json()['access_token']}"}
+
+    post_resp = await async_client.post("/chat", json={"message": "Hello"}, headers=headers_a)
+    assert post_resp.status_code == 202, f"POST /chat (guest A) failed: {post_resp.text}"
+    stream_url: str = post_resp.json()["stream_url"]
+
+    # Guest B: attempt to access guest A's stream with a different session token
+    resp_b = await async_client.post("/auth/guest")
+    assert resp_b.status_code == 200
+    headers_b = {"Authorization": f"Bearer {resp_b.json()['access_token']}"}
+
+    stream_resp = await async_client.get(stream_url, headers=headers_b, timeout=10.0)
+    assert stream_resp.status_code == 403, (
+        f"Expected 403 for cross-guest stream access, got "
+        f"{stream_resp.status_code}: {stream_resp.text}"
+    )
