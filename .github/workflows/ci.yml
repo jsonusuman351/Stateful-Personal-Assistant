@@ -114,16 +114,89 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/assistant_test  # pragma: allowlist secret
           TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/assistant_test  # pragma: allowlist secret
           REDIS_URL: redis://localhost:6379/0
-          # Fall back to zero-entropy placeholders for fork PRs that lack secrets.
-          # Unit tests set their own env vars via monkeypatch; these only satisfy
-          # the settings.py ValidationError guard before test collection begins.
+          # Dummy values satisfy settings.py ValidationError guard before test collection.
+          # Unit tests mock all external API calls — no real keys are used or needed.
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'ci-dummy-not-a-real-key' }}
           JWT_SECRET: ${{ secrets.JWT_SECRET || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }}  # pragma: allowlist secret
           JWT_ISSUER: stateful-assistant
           JWT_AUDIENCE: stateful-assistant-users
-        run: pytest --cov=src --cov-report=xml --tb=short -q
+        run: pytest --cov=src --cov-report=xml --cov-fail-under=80 --tb=short -q
 
-  # ── Stage 5: Migrations ──────────────────────────────────────────────────────
+  # ── Stage 5: Docker build + healthcheck ──────────────────────────────────────
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: test
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: assistant_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres  # pragma: allowlist secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d assistant_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 10s
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t stateful-assistant:ci .
+
+      - name: Start container and verify healthcheck
+        # --network host lets the container reach the postgres/redis service
+        # containers bound to localhost on the runner (Linux only — ubuntu-latest).
+        # The app lifespan runs Alembic migrations on startup; without real DB
+        # access the process exits non-zero and /health never responds.
+        # Dummy OPENAI_API_KEY satisfies settings.py validation; no real API
+        # calls are made — the /health endpoint is a pure liveness check.
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/assistant_test  # pragma: allowlist secret
+          REDIS_URL: redis://localhost:6379/0
+          OPENAI_API_KEY: ci-dummy-not-a-real-key  # pragma: allowlist secret
+          JWT_SECRET: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  # pragma: allowlist secret
+          JWT_ISSUER: stateful-assistant
+          JWT_AUDIENCE: stateful-assistant-users
+        run: |
+          docker run -d --name app \
+            --network host \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e REDIS_URL="$REDIS_URL" \
+            -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+            -e JWT_SECRET="$JWT_SECRET" \
+            -e JWT_ISSUER="$JWT_ISSUER" \
+            -e JWT_AUDIENCE="$JWT_AUDIENCE" \
+            stateful-assistant:ci
+
+          echo "Polling /health (max 60s)..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+              echo "Health check passed on attempt $i"
+              docker stop app
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Health check timed out after 60s — container logs:"
+          docker logs app
+          docker stop app
+          exit 1
+
+  # ── Stage 6: Migrations ──────────────────────────────────────────────────────
   migrations:
     runs-on: ubuntu-latest
     needs: test
@@ -156,8 +229,6 @@ jobs:
       - name: Run Alembic migrations (upgrade + downgrade)
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/assistant_test  # pragma: allowlist secret
-          # REDIS_URL and OPENAI_API_KEY are required by settings.py validation even
-          # though alembic only uses DATABASE_URL; provide harmless placeholders.
           REDIS_URL: redis://localhost:6379/0
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'ci-dummy-not-a-real-key' }}
           JWT_SECRET: ${{ secrets.JWT_SECRET || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }}  # pragma: allowlist secret
@@ -167,18 +238,8 @@ jobs:
           alembic upgrade head
           alembic downgrade -1
 
-  # ── Deploy to Render (main only) ─────────────────────────────────────────────
-  deploy:
-    runs-on: ubuntu-latest
-    needs: migrations
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    steps:
-      - name: Trigger Render deploy hook
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-        run: |
-          if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
-            curl -fsSL -X POST "$RENDER_DEPLOY_HOOK_URL"
-          else
-            echo "RENDER_DEPLOY_HOOK_URL not set, skipping deploy"
-          fi
+  # Deployment is handled by .github/workflows/deploy.yml.
+  # That workflow triggers on the same push-to-main event, builds and pushes
+  # the Docker image to GHCR, then deploys to Render under the "production"
+  # environment (which requires manual approval).  Keeping CI and deploy
+  # separate ensures a failed deploy never blocks a subsequent CI run.
