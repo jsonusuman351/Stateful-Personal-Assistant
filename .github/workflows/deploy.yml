@@ -5,6 +5,15 @@ name: Deploy
 on:
   push:
     branches: [main]
+    # Skip deploy for documentation-only and tooling changes.
+    # A deploy is only needed when source code, dependencies, or infra changes.
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".graphifyignore"
+      - "graphify-out/**"
+      - ".gitignore"
+      - ".claudeignore"
   workflow_dispatch:
 
 jobs:
@@ -80,11 +89,19 @@ jobs:
           if [ -n "$RENDER_API_KEY" ] && [ -n "$RENDER_SERVICE_ID" ]; then
             echo "Triggering deploy via Render API (image tag: $IMAGE_TAG)..."
 
-            DEPLOY_RESPONSE=$(curl -fsSL -X POST \
+            HTTP_CODE=$(curl -sSL -o /tmp/render_response.json -w "%{http_code}" -X POST \
               "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
               -H "Authorization: Bearer ${RENDER_API_KEY}" \
               -H "Content-Type: application/json" \
               -d '{"clearCache":"do_not_clear"}')
+            DEPLOY_RESPONSE=$(cat /tmp/render_response.json)
+            echo "Render API HTTP status: $HTTP_CODE"
+            echo "Render API response: $DEPLOY_RESPONSE"
+
+            if [ "$HTTP_CODE" -ge 400 ]; then
+              echo "Render API returned error $HTTP_CODE — check RENDER_API_KEY and RENDER_SERVICE_ID."
+              exit 1
+            fi
 
             DEPLOY_ID=$(echo "$DEPLOY_RESPONSE" \
               | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
