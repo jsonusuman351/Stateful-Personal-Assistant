@@ -53,3 +53,7 @@ logs/
 
 # Build artifacts
 graphify-out/
+
+coverage.json
+.coverage
+htmlcov/
