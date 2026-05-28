@@ -54,6 +54,11 @@ logs/
 # Build artifacts
 graphify-out/
 
+# Graphify temp files (root-level, created during pipeline run)
+.graphify_python
+.graphify_*.json
+.graphify_*.txt
+
 coverage.json
 .coverage
 htmlcov/
