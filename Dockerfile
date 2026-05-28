@@ -45,12 +45,16 @@ COPY --chown=app:app alembic.ini alembic.ini
 # Activate venv; PYTHONUNBUFFERED ensures structlog JSON lines are flushed
 # immediately to stdout/stderr without buffering.
 ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH=/app \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
 USER app
 
 EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=4)"
 
 # --factory tells uvicorn to call create_app() to obtain the ASGI application.
 # CLAUDE.md documents "uvicorn src.api.main:app" for bare-metal local dev, which

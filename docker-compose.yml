@@ -9,6 +9,8 @@ services:
       POSTGRES_PASSWORD: postgres  # pragma: allowlist secret
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - assistant_net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d assistant"]
       interval: 5s
@@ -21,6 +23,8 @@ services:
     image: redis:7-alpine
     volumes:
       - redis_data:/data
+    networks:
+      - assistant_net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -44,6 +48,8 @@ services:
       REDIS_URL: redis://redis:6379/0
     ports:
       - "8000:8000"
+    networks:
+      - assistant_net
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,3 +71,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  assistant_net:
+    driver: bridge
