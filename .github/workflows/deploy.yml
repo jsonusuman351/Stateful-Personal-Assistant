@@ -1,10 +1,11 @@
 name: Deploy
 
-# Triggers only when commits land on main (i.e. a PR is merged).
+# Triggers on merges to main, or manually via GitHub Actions UI / gh CLI.
 # Pull requests never trigger this workflow — CI handles those.
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   # ── Stage 1: Build Docker image and push to GHCR ─────────────────────────────
