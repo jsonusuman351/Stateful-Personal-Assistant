@@ -8,41 +8,9 @@ from functools import lru_cache
 from typing import Any
 
 from pydantic import computed_field, field_validator, model_validator
-from pydantic.fields import FieldInfo
-from pydantic_settings import BaseSettings, EnvSettingsSource, PydanticBaseSettingsSource
+from pydantic_settings import BaseSettings
 
 logger = logging.getLogger(__name__)
-
-
-class _TolerantEnvSource(EnvSettingsSource):
-    """EnvSettingsSource that accepts CSV or bare URL for list[str] fields.
-
-    Pydantic-settings normally calls json.loads() on all complex-typed env vars
-    before validators run, so CORS_ORIGINS=https://example.com crashes with
-    JSONDecodeError. This subclass intercepts list[str] fields and converts
-    CSV / bare URLs to a Python list before the JSON decoder is invoked.
-    """
-
-    def prepare_field_value(
-        self,
-        field_name: str,
-        field: FieldInfo,
-        value: Any,
-        value_is_complex: bool,
-    ) -> Any:
-        """Handle CSV / bare URL values for list[str] fields."""
-        if value_is_complex and isinstance(value, str):
-            v = value.strip()
-            if not v:
-                # Return None so the field is omitted from the result dict
-                # and the field default (e.g. []) is used instead.
-                return None
-            if v.startswith("["):
-                # Looks like JSON — let the parent decode it normally.
-                return super().prepare_field_value(field_name, field, v, value_is_complex)
-            # CSV or bare single URL — convert directly to list, skip json.loads.
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return super().prepare_field_value(field_name, field, value, value_is_complex)
 
 
 class Settings(BaseSettings):
@@ -61,8 +29,6 @@ class Settings(BaseSettings):
         "env_file": ".env",
         "env_file_encoding": "utf-8",
         "extra": "ignore",
-        # Belt-and-suspenders: skip empty-string env vars and use field defaults.
-        "env_ignore_empty": True,
     }
 
     # ── Required secrets (no defaults — absent → ValidationError) ─────────────
@@ -96,8 +62,10 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # ── CORS (NFR-14) ─────────────────────────────────────────────────────────
-    # Accepts JSON array, CSV, or bare URL — see _TolerantEnvSource above.
-    CORS_ORIGINS: list[str] = []
+    # Stored as a raw string so pydantic-settings never attempts json.loads on
+    # it. Parsed to list[str] by parse_cors_origins() in src/api/main.py.
+    # Accepts: bare URL, CSV, or JSON array — all handled at usage time.
+    CORS_ORIGINS: str = ""
 
     # ── Quota windows (FR-26, FR-31) ──────────────────────────────────────────
     QUOTA_4H_REQUESTS: int = 20
@@ -154,25 +122,6 @@ class Settings(BaseSettings):
             return []
         models: list[str] = json.loads(self.FALLBACK_MODELS)
         return models
-
-    # ── Custom env source ─────────────────────────────────────────────────────
-
-    @classmethod
-    def settings_customise_sources(
-        cls,
-        settings_cls: type[BaseSettings],
-        init_settings: PydanticBaseSettingsSource,
-        env_settings: PydanticBaseSettingsSource,
-        dotenv_settings: PydanticBaseSettingsSource,
-        file_secret_settings: PydanticBaseSettingsSource,
-    ) -> tuple[PydanticBaseSettingsSource, ...]:
-        """Replace the default EnvSettingsSource with our tolerant subclass."""
-        return (
-            init_settings,
-            _TolerantEnvSource(settings_cls),
-            dotenv_settings,
-            file_secret_settings,
-        )
 
 
 @lru_cache(maxsize=1)

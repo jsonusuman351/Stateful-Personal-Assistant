@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import sys
 from collections.abc import AsyncGenerator
@@ -200,10 +201,19 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="Stateful Personal Assistant", lifespan=lifespan)
 
-    # CORS — never "*" in production (NFR-14)
+    # CORS — never "*" in production (NFR-14).
+    # CORS_ORIGINS is stored as str to avoid pydantic-settings json.loads on
+    # list fields; parse it here from JSON array, CSV, or bare URL.
+    raw = settings.CORS_ORIGINS.strip()
+    if not raw:
+        cors_origins: list[str] = []
+    elif raw.startswith("["):
+        cors_origins = json.loads(raw)
+    else:
+        cors_origins = [o.strip() for o in raw.split(",") if o.strip()]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
