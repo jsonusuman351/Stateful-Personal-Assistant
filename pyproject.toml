@@ -69,6 +69,8 @@ module = [
     "alembic.*",
     "asyncpg.*",
     "argon2.*",
+    "streamlit",
+    "streamlit.*",
 ]
 ignore_missing_imports = true
 
@@ -98,6 +100,7 @@ source = ["src"]
 branch = true
 omit = [
     "src/**/__init__.py",
+    "src/frontend/*",
 ]
 
 [tool.coverage.report]

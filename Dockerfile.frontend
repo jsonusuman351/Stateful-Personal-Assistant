@@ -1,0 +1,29 @@
+# ── Streamlit frontend image ───────────────────────────────────────────────────
+# Intentionally separate from the backend Dockerfile so the lean FastAPI image
+# is not bloated with Streamlit's heavy transitive dependencies (pyarrow,
+# tornado, altair, protobuf, gitpython, …).
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements-frontend.txt .
+
+RUN pip install --upgrade pip --no-cache-dir \
+ && pip install --no-cache-dir -r requirements-frontend.txt
+
+# Copy only the frontend source — no backend code needed at runtime.
+COPY src/frontend/ src/frontend/
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+EXPOSE 8501
+
+# --server.address=0.0.0.0  binds to all interfaces (localhost-only by default
+#                            inside a container means the port is unreachable).
+# --server.headless=true     suppresses browser-open attempts and XSRF warnings
+#                            that clutter logs in a containerised environment.
+CMD ["streamlit", "run", "src/frontend/app.py", \
+     "--server.port=8501", \
+     "--server.address=0.0.0.0", \
+     "--server.headless=true"]

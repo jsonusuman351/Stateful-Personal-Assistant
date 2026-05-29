@@ -32,6 +32,23 @@ services:
       retries: 12
       start_period: 5s
 
+  # ── Streamlit frontend ────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    environment:
+      # Reaches the API over Docker's internal bridge network, not localhost.
+      BACKEND_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    networks:
+      - assistant_net
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
   # ── FastAPI application ───────────────────────────────────────────────────────
   api:
     build:
