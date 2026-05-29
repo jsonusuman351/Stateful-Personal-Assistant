@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import TokenPayload, get_current_user, get_db
@@ -19,7 +20,7 @@ from src.auth.jwt import (
     create_refresh_token,
     decode_token,
 )
-from src.auth.password import dummy_verify, verify_password
+from src.auth.password import dummy_verify, hash_password, verify_password
 from src.auth.rate_limit import (
     check_email_rate_limit,
     check_ip_rate_limit,
@@ -33,6 +34,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 # ── Request / response models ─────────────────────────────────────────────────
+
+
+class RegisterRequest(BaseModel):
+    """POST /auth/register request body."""
+
+    email: str
+    password: str
 
 
 class LoginRequest(BaseModel):
@@ -92,6 +100,63 @@ async def issue_guest_token() -> GuestTokenResponse:
     jti = str(uuid.uuid4())
     token = create_guest_token(session_id=session_id, jti=jti)
     return GuestTokenResponse(access_token=token, session_id=session_id)
+
+
+# ── POST /auth/register ─────────────────────────────────────────────────────
+
+
+@router.post("/register", response_model=TokenResponse, status_code=201)
+async def register(
+    body: RegisterRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Create a new user account and return access + refresh tokens (auto-login).
+
+    Returns HTTP 409 if the email is already registered.
+    Password must be at least 8 characters.
+    """
+    if len(body.password) < 8:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "WEAK_PASSWORD",
+                "message": "Password must be at least 8 characters.",
+                "retryable": False,
+                "retry_after_seconds": None,
+            },
+        )
+
+    password_hash = hash_password(body.password)
+    repo = UserRepository(db)
+
+    try:
+        user = await repo.create_user(email=body.email.lower().strip(), password_hash=password_hash)
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "EMAIL_TAKEN",
+                "message": "An account with this email already exists.",
+                "retryable": False,
+                "retry_after_seconds": None,
+            },
+        ) from exc
+
+    access_jti = str(uuid.uuid4())
+    refresh_jti_str = str(uuid.uuid4())
+    refresh_jti_uuid = uuid.UUID(refresh_jti_str)
+
+    access_token = create_access_token(str(user.id), access_jti)
+    refresh_token_str = create_refresh_token(str(user.id), refresh_jti_str)
+
+    exp_ts: int = decode_token(refresh_token_str)["exp"]
+    expires_at = datetime.fromtimestamp(exp_ts, tz=timezone.utc)
+    await repo.store_refresh_token(refresh_jti_uuid, user.id, expires_at)
+    await db.commit()
+
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token_str)
 
 
 # ── POST /auth/login ────────────────────────────────────────────────────────

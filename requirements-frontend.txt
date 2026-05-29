@@ -1,0 +1,10 @@
+# Frontend dependencies — NOT included in the backend Docker image.
+# Install separately before running the Streamlit UI:
+#
+#   pip install -r requirements-frontend.txt
+#   streamlit run src/frontend/app.py
+#
+# requests is already available in the main venv; listed here so a
+# standalone frontend venv also gets it.
+streamlit==1.45.1
+requests>=2.34.2
