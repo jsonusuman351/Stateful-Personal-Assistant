@@ -64,6 +64,28 @@ class Settings(BaseSettings):
     # ── CORS (NFR-14) ─────────────────────────────────────────────────────────
     CORS_ORIGINS: list[str] = []
 
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, v: Any) -> list[str]:
+        """Accept JSON array or comma-separated string from env var.
+
+        Handles all three formats Render/CI may provide:
+          JSON:   '["https://a.com","https://b.com"]'
+          CSV:    'https://a.com,https://b.com'
+          Single: 'https://a.com'
+        """
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return []
+            if v.startswith("["):
+                parsed: list[str] = json.loads(v)
+                return parsed
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return []
+
     # ── Quota windows (FR-26, FR-31) ──────────────────────────────────────────
     QUOTA_4H_REQUESTS: int = 20
     QUOTA_24H_REQUESTS: int = 100
