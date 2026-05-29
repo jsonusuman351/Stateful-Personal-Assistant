@@ -19,11 +19,10 @@ ENV PYTHONUNBUFFERED=1 \
 
 EXPOSE 8501
 
-# --server.address=0.0.0.0  binds to all interfaces (localhost-only by default
-#                            inside a container means the port is unreachable).
-# --server.headless=true     suppresses browser-open attempts and XSRF warnings
-#                            that clutter logs in a containerised environment.
-CMD ["streamlit", "run", "src/frontend/app.py", \
-     "--server.port=8501", \
-     "--server.address=0.0.0.0", \
-     "--server.headless=true"]
+# Shell form so $PORT is expanded at runtime (required for Render).
+# Docker Compose overrides the port via --server.port=8501 in docker-compose.yml
+# if a fixed port is needed locally; Render injects $PORT automatically.
+CMD streamlit run src/frontend/app.py \
+    --server.port=${PORT:-8501} \
+    --server.address=0.0.0.0 \
+    --server.headless=true
