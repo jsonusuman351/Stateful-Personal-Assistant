@@ -164,14 +164,14 @@ class Settings(BaseSettings):
         init_settings: PydanticBaseSettingsSource,
         env_settings: PydanticBaseSettingsSource,
         dotenv_settings: PydanticBaseSettingsSource,
-        secrets_dir_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         """Replace the default EnvSettingsSource with our tolerant subclass."""
         return (
             init_settings,
             _TolerantEnvSource(settings_cls),
             dotenv_settings,
-            secrets_dir_settings,
+            file_secret_settings,
         )
 
 
