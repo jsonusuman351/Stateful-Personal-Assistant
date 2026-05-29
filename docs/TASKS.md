@@ -14,11 +14,13 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-## Phase 1 — Foundation
+## Phase 1 — Foundation ✅
+
+> **Complete** — all tasks shipped.
 
 ---
 
-### T-001: Project dependencies and toolchain configuration
+### T-001: Project dependencies and toolchain configuration ✅
 
 **Description:** Pin all runtime and dev dependencies; configure ruff, mypy (strict), and pytest. This is the first task; nothing can be installed or linted until it exists.
 
@@ -38,7 +40,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-002: Application settings with startup validation
+### T-002: Application settings with startup validation ✅
 
 **Description:** Implement `config/settings.py` as a Pydantic `BaseSettings` class that reads every required environment variable, fails fast on missing required vars, and validates `FALLBACK_MODELS` JSON at import time (FR-33 startup validation).
 
@@ -68,7 +70,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-003: Async database engine and session factory
+### T-003: Async database engine and session factory ✅
 
 **Description:** Set up SQLAlchemy async engine with `asyncpg`, configure the connection pool, and expose a `get_db_session()` async context manager. Pool parameters are sourced from settings (NFR-7).
 
@@ -89,7 +91,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-004: Async Redis client and connection pool
+### T-004: Async Redis client and connection pool ✅
 
 **Description:** Implement `persistence/redis_client.py` as a module-level singleton that returns an async Redis connection pool. Pool parameters come from settings (NFR-7, NFR-8).
 
@@ -110,7 +112,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-005: Structured JSON logging
+### T-005: Structured JSON logging ✅
 
 **Description:** Configure `structlog` with a JSON processor chain that auto-injects `request_id`, `user_id`, and `session_id` context variables. Log level is sourced from settings (NFR-18).
 
@@ -133,7 +135,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-006: Input sanitisation helpers
+### T-006: Input sanitisation helpers ✅
 
 **Description:** Implement the three-step sanitisation pipeline in `utils/sanitise.py`: reject null bytes, normalise Unicode to NFC, strip leading/trailing whitespace. This is used as a Pydantic validator and as middleware (NFR-15, DESIGN §9.6).
 
@@ -156,11 +158,13 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-## Phase 2 — Persistence: Models, Migrations, Repositories
+## Phase 2 — Persistence: Models, Migrations, Repositories ✅
+
+> **Complete** — all tasks shipped.
 
 ---
 
-### T-007: SQLAlchemy ORM model definitions
+### T-007: SQLAlchemy ORM model definitions ✅
 
 **Description:** Define all five ORM table models matching the DDL in DESIGN §5.2. Every column, constraint, index, and relationship must be declared. No migration yet — models only.
 
@@ -187,7 +191,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-008: Alembic setup and initial schema migration
+### T-008: Alembic setup and initial schema migration ✅
 
 **Description:** Initialise Alembic, configure `env.py` to use the async engine, and write the initial migration that creates all tables from T-007. Every migration must include a working `downgrade()` (NFR-10).
 
@@ -212,7 +216,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-009: User and refresh-token repository
+### T-009: User and refresh-token repository ✅
 
 **Description:** Implement `user_repo.py` with typed async methods for user CRUD and token management. All queries must be parameterised (NFR-13).
 
@@ -239,7 +243,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-010: Conversation and message repository
+### T-010: Conversation and message repository ✅
 
 **Description:** Implement `conversation_repo.py` and `message_repo.py` with typed async methods for session CRUD and message history. All queries must be scoped by `user_id` (FR-17).
 
@@ -266,7 +270,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-011: HITL repository
+### T-011: HITL repository ✅
 
 **Description:** Implement `hitl_repo.py` with atomic approval-ID lifecycle management. All state transitions must use single-statement `UPDATE ... RETURNING` (FR-10, NFR-16).
 
@@ -290,7 +294,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-012: LangGraph PostgreSQL checkpointer wiring
+### T-012: LangGraph PostgreSQL checkpointer wiring ✅
 
 **Description:** Wrap `AsyncPostgresSaver` in `persistence/checkpointer.py`, expose a factory that returns a configured checkpointer using the app's `DATABASE_URL`, and run `setup()` on first use (DESIGN §2.1).
 
@@ -312,11 +316,13 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-## Phase 3 — Authentication
+## Phase 3 — Authentication ✅
+
+> **Complete** — all tasks shipped.
 
 ---
 
-### T-013: Password hashing with Argon2id
+### T-013: Password hashing with Argon2id ✅
 
 **Description:** Implement `auth/password.py` with `hash_password()` and `verify_password()` using `argon2-cffi`. Include a `dummy_verify()` for constant-time no-user-found paths (FR-16, DESIGN §9.4).
 
@@ -341,7 +347,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-014: JWT creation and validation
+### T-014: JWT creation and validation ✅
 
 **Description:** Implement `auth/jwt.py` to create and validate JWTs. All standard claims must be enforced (`iss`, `aud`, `exp`, `nbf`, `jti`). Guest and auth tokens follow different claim sets (FR-15, FR-16, DESIGN §9.2).
 
@@ -369,7 +375,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-015: Access token JTI blacklist
+### T-015: Access token JTI blacklist ✅
 
 **Description:** Implement `auth/blacklist.py` using Redis with TTL equal to the token's remaining lifetime. Every protected endpoint checks this before allowing access (FR-16, DESIGN §9.2).
 
@@ -391,7 +397,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-016: Login rate limiting and brute-force lockout
+### T-016: Login rate limiting and brute-force lockout ✅
 
 **Description:** Implement `auth/rate_limit.py` with per-IP and per-email Redis sliding-window counters, and a soft-lock at 5 consecutive failures. Counters expire automatically (FR-30, DESIGN §5.3 Redis key namespace).
 
@@ -417,11 +423,13 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-## Phase 4 — Tools
+## Phase 4 — Tools ✅
+
+> **Complete** — all tasks shipped.
 
 ---
 
-### T-017: BaseTool Protocol definition
+### T-017: BaseTool Protocol definition ✅
 
 **Description:** Define `BaseTool` as a `@runtime_checkable` Protocol in `tools/base.py`. This is the extensibility interface (FR-1, DESIGN §2.5).
 
@@ -443,7 +451,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-018: CalculatorTool
+### T-018: CalculatorTool ✅
 
 **Description:** Implement `CalculatorTool` using `simpleeval`. Must not use `eval()`, `exec()`, or `compile()`. Must reject all non-arithmetic input (FR-3, NFR-11, DESIGN §2.5).
 
@@ -468,7 +476,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-019: WeatherTool
+### T-019: WeatherTool ✅
 
 **Description:** Implement `WeatherTool` that calls an external weather API (e.g., Open-Meteo or OpenWeatherMap) and returns `temperature`, `condition`, `humidity`. Missing API key returns a config error, not a runtime crash (SC-6). `is_sensitive = False` (FR-2).
 
@@ -491,7 +499,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-020: WebSearchTool
+### T-020: WebSearchTool ✅
 
 **Description:** Implement `WebSearchTool` backed by Tavily. Apply relevance filtering (≥ 0.7), cap at 5 results, truncate to 2000-token budget. `is_sensitive = True` triggers HITL. Uses `asyncio.to_thread` for the sync Tavily client (REVIEW-28, FR-4, DESIGN §2.5).
 
@@ -518,7 +526,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-021: Tool registry loader
+### T-021: Tool registry loader ✅
 
 **Description:** Implement `tools/registry.py` to load tools from `config/tools.yaml` at startup. Validate that every configured class implements `BaseTool`. Expose a `GET /tools` compatible dict. (FR-1, FR-5, FR-33, DESIGN §2.5).
 
@@ -543,11 +551,13 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-## Phase 5 — Agent State and Graph
+## Phase 5 — Agent State and Graph ✅
+
+> **Complete** — all tasks shipped.
 
 ---
 
-### T-022: AgentState TypedDict
+### T-022: AgentState TypedDict ✅
 
 **Description:** Define all TypedDicts in `agents/state.py` exactly as specified in DESIGN §2.2. Reducers must be correct: `add_messages` for `messages`, replace-on-write lambdas for `tool_calls` and `tool_results`.
 
@@ -571,7 +581,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-023: Graph edge (routing) functions
+### T-023: Graph edge (routing) functions ✅
 
 **Description:** Implement all four conditional edge functions in `graph/edges.py`: `route_after_router`, `route_after_hitl`, `route_after_tools`, `route_after_llm`. Each must match the logic in DESIGN §2.4 exactly.
 
@@ -601,7 +611,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-024: `router` node
+### T-024: `router` node ✅
 
 **Description:** Implement the `router` node in `graph/nodes/router.py`. Resets `tool_calls`/`tool_results` each turn, calls the LLM for tool selection, writes selected `ToolCall` list to state. Does not emit SSE directly (DESIGN §2.3).
 
@@ -625,7 +635,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-025: `hitl_gate` node
+### T-025: `hitl_gate` node ✅
 
 **Description:** Implement the `hitl_gate` node. Must perform atomic DB write in a single transaction, set `pending_approval` in state on success, set `error` on failure. Does not emit SSE — `runner.py` handles that (FR-9, DESIGN §2.3).
 
@@ -649,7 +659,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-026: `tool_executor` node
+### T-026: `tool_executor` node ✅
 
 **Description:** Implement `tool_executor` with concurrent execution via `asyncio.gather`, per-tool `asyncio.wait_for` timeout of 3s, and inline retry with 1s/2s/4s backoff (FR-7, FR-27, DESIGN §2.3).
 
@@ -674,7 +684,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-027: `llm` node
+### T-027: `llm` node ✅
 
 **Description:** Implement the `llm` node with streaming, 2-retry primary backoff (2s/4s), fallback chain from `FALLBACK_MODELS`, token quota recording, and empty-response detection (FR-24, FR-28, DESIGN §2.3).
 
@@ -701,7 +711,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-028: `error_handler` node
+### T-028: `error_handler` node ✅
 
 **Description:** Implement the `error_handler` node to emit user-facing `AIMessage` responses based on `state["error"].code`. All retries have already been exhausted upstream; this node does not retry (DESIGN §2.3).
 
@@ -725,7 +735,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-029: StateGraph construction and compilation
+### T-029: StateGraph construction and compilation ✅
 
 **Description:** Wire all nodes and edges into a compiled `StateGraph` in `agents/graph.py`, configure `interrupt_after=["hitl_gate"]`, and attach the PostgreSQL checkpointer (DESIGN §2.1).
 
@@ -748,7 +758,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-030: Graph runner (`run_turn` and `resume_turn`)
+### T-030: Graph runner (`run_turn` and `resume_turn`) ✅
 
 **Description:** Implement `agents/runner.py` with `run_turn()` and `resume_turn()`. These functions iterate `graph.astream_events()` and translate graph events to SSE via the emitter. LangSmith metadata is injected here (NFR-17, DESIGN §2.6, §8.1).
 
@@ -779,11 +789,13 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-## Phase 6 — Streaming
+## Phase 6 — Streaming ✅
+
+> **Complete** — all tasks shipped.
 
 ---
 
-### T-031: SSE event Pydantic models
+### T-031: SSE event Pydantic models ✅
 
 **Description:** Define Pydantic models for each of the six SSE event types in `streaming/events.py` (FR-13). These models enforce the payload schema at emit time.
 
@@ -807,7 +819,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-032: SSE emitter with Redis replay buffer
+### T-032: SSE emitter with Redis replay buffer ✅
 
 **Description:** Implement `streaming/emitter.py`. Formats events as SSE text (`id:`, `event:`, `data:`), pushes them to a Redis list with an auto-incrementing `id`, and manages TTL per NFR-8.
 
@@ -833,7 +845,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-033: SSE replay buffer reader
+### T-033: SSE replay buffer reader ✅
 
 **Description:** Implement `streaming/replay.py` to read events from the Redis replay buffer for reconnecting clients. Validates stream ownership and handles expired streams (FR-14, NFR-5).
 
@@ -857,11 +869,13 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-## Phase 7 — Quota
+## Phase 7 — Quota ✅
+
+> **Complete** — all tasks shipped.
 
 ---
 
-### T-034: Sliding-window OpenAI quota enforcement
+### T-034: Sliding-window OpenAI quota enforcement ✅
 
 **Description:** Implement `quota/limiter.py` with per-user (or per-guest-session) and per-IP sliding-window counters for the three quota windows. Fallback model calls must not be counted (FR-26, FR-31, DESIGN §5.3).
 
@@ -1103,7 +1117,9 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-## Phase 9 — Infrastructure
+## Phase 9 — Infrastructure ✅
+
+> **Complete** — all tasks shipped.
 
 ---
 
@@ -1198,11 +1214,13 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-## Phase 10 — Integration Tests
+## Phase 10 — Integration Tests ✅
+
+> **Complete** — all tasks shipped. 30/30 integration tests pass, 94.68% coverage (>80% gate).
 
 ---
 
-### T-047: Test infrastructure (fixtures and mocks)
+### T-047: Test infrastructure (fixtures and mocks) ✅
 
 **Description:** Set up `tests/conftest.py` with shared pytest-asyncio fixtures: async test client, mock DB session, mock Redis, mock OpenAI, mock Tavily, mock weather API. These fixtures are used by all integration tests.
 
@@ -1226,7 +1244,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-048: Full chat flow integration test
+### T-048: Full chat flow integration test ✅
 
 **Description:** End-to-end test of the normal (no-tool) and non-sensitive tool path: `POST /chat` → `GET /chat/stream` → consume all SSE events → assert event sequence and content (FR-8, FR-12, FR-13, NFR-1, NFR-2).
 
@@ -1254,7 +1272,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-049: HITL flow integration test
+### T-049: HITL flow integration test ✅
 
 **Description:** End-to-end HITL test: web search query → `approval_required` SSE event → `POST /approve` → graph resumes → `done`. Tests approve and deny paths, concurrency guard, and replay buffer TTL (FR-9, FR-10, FR-11, FR-14, FR-32, NFR-4).
 
@@ -1284,7 +1302,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-050: SSE reconnection integration test
+### T-050: SSE reconnection integration test ✅
 
 **Description:** Test mid-stream disconnect and replay via `Last-Event-ID`. Verifies replay order, cross-session rejection, and buffer expiry (FR-14, NFR-5).
 
@@ -1309,7 +1327,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-051: Session CRUD and data isolation integration test
+### T-051: Session CRUD and data isolation integration test ✅
 
 **Description:** Test the full session lifecycle including list, messages, delete, and cross-user data isolation. Verifies that LangGraph checkpointer re-hydrates context across process restarts (FR-17, FR-18, FR-19, FR-20, SM-9).
 
@@ -1336,7 +1354,7 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ---
 
-### T-052: Guest session isolation and expiry integration test
+### T-052: Guest session isolation and expiry integration test ✅
 
 **Description:** Test guest session Redis state, isolation between two guests, and HTTP 410 on key expiry. Verify no guest data written to PostgreSQL (FR-21).
 
@@ -1361,16 +1379,16 @@ Phases: Foundation → Persistence → Auth → Tools → Graph → Streaming �
 
 ## Summary
 
-| Phase | Tasks | Spec coverage |
-|---|---|---|
-| Foundation | T-001 – T-006 | SC-2, SC-10, NFR-15, NFR-18 |
-| Persistence | T-007 – T-012 | FR-17, FR-18, FR-22, NFR-7, NFR-10, NFR-13 |
-| Auth | T-013 – T-016 | FR-15, FR-16, FR-30, NFR-12 |
-| Tools | T-017 – T-021 | FR-1 – FR-5, FR-33, NFR-11 |
-| Graph | T-022 – T-030 | FR-6 – FR-11, FR-23, FR-24, FR-27, FR-28, NFR-17 |
-| Streaming | T-031 – T-033 | FR-12 – FR-14, NFR-2, NFR-5, NFR-8 |
-| Quota | T-034 | FR-26, FR-31 |
-| API | T-035 – T-042 | FR-12, FR-19, FR-20, FR-25, FR-29, FR-33, NFR-9, NFR-10, NFR-14, NFR-18 |
-| Infrastructure | T-043 – T-046 | G-7, SC-1, SC-9, FR-11, FR-22, NFR-12 |
-| Integration | T-047 – T-052 | FR-7, FR-8, FR-9, FR-10, FR-13, FR-14, FR-17, FR-18, FR-21, FR-32, NFR-1, NFR-2, NFR-4, NFR-5, SM-3, SM-9 |
-| **Total** | **52 tasks** | |
+| Phase | Tasks | Status | Spec coverage |
+|---|---|---|---|
+| Foundation | T-001 – T-006 | ✅ Complete | SC-2, SC-10, NFR-15, NFR-18 |
+| Persistence | T-007 – T-012 | ✅ Complete | FR-17, FR-18, FR-22, NFR-7, NFR-10, NFR-13 |
+| Auth | T-013 – T-016 | ✅ Complete | FR-15, FR-16, FR-30, NFR-12 |
+| Tools | T-017 – T-021 | ✅ Complete | FR-1 – FR-5, FR-33, NFR-11 |
+| Graph | T-022 – T-030 | ✅ Complete | FR-6 – FR-11, FR-23, FR-24, FR-27, FR-28, NFR-17 |
+| Streaming | T-031 – T-033 | ✅ Complete | FR-12 – FR-14, NFR-2, NFR-5, NFR-8 |
+| Quota | T-034 | ✅ Complete | FR-26, FR-31 |
+| API | T-035 – T-042 | ✅ Complete | FR-12, FR-19, FR-20, FR-25, FR-29, FR-33, NFR-9, NFR-10, NFR-14, NFR-18 |
+| Infrastructure | T-043 – T-046 | ✅ Complete | G-7, SC-1, SC-9, FR-11, FR-22, NFR-12 |
+| Integration | T-047 – T-052 | ✅ Complete | FR-7, FR-8, FR-9, FR-10, FR-13, FR-14, FR-17, FR-18, FR-21, FR-32, NFR-1, NFR-2, NFR-4, NFR-5, SM-3, SM-9 |
+| **Total** | **52 tasks** | **52/52 done** | |
