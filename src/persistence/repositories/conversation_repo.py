@@ -11,7 +11,7 @@ import base64
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.persistence.models.conversation import Conversation
@@ -58,7 +58,10 @@ class ConversationRepository:
             except Exception:
                 cursor_ts = None
 
-        stmt = select(Conversation).where(Conversation.user_id == user_id)
+        stmt = select(Conversation).where(
+            Conversation.user_id == user_id,
+            Conversation.is_deleted.is_(False),
+        )
         if cursor_ts is not None:
             stmt = stmt.where(Conversation.last_accessed < cursor_ts)
         stmt = stmt.order_by(Conversation.last_accessed.desc()).limit(limit + 1)
@@ -91,6 +94,7 @@ class ConversationRepository:
         stmt = select(Conversation).where(
             Conversation.id == conversation_id,
             Conversation.user_id == user_id,
+            Conversation.is_deleted.is_(False),
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
@@ -115,13 +119,19 @@ class ConversationRepository:
         return conversation
 
     async def _unique_title(self, user_id: UUID, title: str) -> str:
-        """Return a title that is unique for this user, disambiguating if needed."""
+        """Return a title that is unique among this user's visible conversations.
+
+        Soft-deleted conversations are excluded from the collision check so that
+        re-using the title of a deleted conversation does not produce a spurious
+        " (2)" suffix.
+        """
         count_stmt = (
             select(func.count())
             .select_from(Conversation)
             .where(
                 Conversation.user_id == user_id,
                 Conversation.title == title,
+                Conversation.is_deleted.is_(False),
             )
         )
         result = await self._session.execute(count_stmt)
@@ -137,6 +147,7 @@ class ConversationRepository:
                 .where(
                     Conversation.user_id == user_id,
                     Conversation.title == candidate,
+                    Conversation.is_deleted.is_(False),
                 )
             )
             result2 = await self._session.execute(check_stmt)
@@ -144,11 +155,36 @@ class ConversationRepository:
                 return candidate
             suffix += 1
 
-    async def delete_conversation(self, user_id: UUID, conversation_id: UUID) -> None:
-        """Delete a conversation owned by user_id.
+    async def soft_delete_conversation(self, user_id: UUID, conversation_id: UUID) -> None:
+        """Mark a conversation as deleted without removing the row.
 
-        Silently no-ops when the conversation_id belongs to a different user
-        (caller must return HTTP 403 based on a prior ownership check).
+        Sets ``is_deleted = True`` so the conversation disappears from all
+        user-facing reads (``list_conversations``, ``get_conversation``) while
+        the underlying data is retained for audit and eventual hard purge by
+        the retention job. Scoped by user_id — silently no-ops when the
+        conversation_id belongs to a different user (caller enforces 403).
+
+        Args:
+            user_id: Must match the conversation's owner.
+            conversation_id: Conversation to soft-delete.
+        """
+        stmt = (
+            update(Conversation)
+            .where(
+                Conversation.id == conversation_id,
+                Conversation.user_id == user_id,
+            )
+            .values(is_deleted=True)
+        )
+        await self._session.execute(stmt)
+
+    async def delete_conversation(self, user_id: UUID, conversation_id: UUID) -> None:
+        """Permanently delete a conversation owned by user_id (hard delete).
+
+        Used by the retention job for eventual purge of stale rows. Not exposed
+        to end users — the user-facing ``DELETE /sessions/{id}`` endpoint calls
+        :meth:`soft_delete_conversation` instead. Silently no-ops when the
+        conversation_id belongs to a different user.
 
         Args:
             user_id: Must match the conversation's owner.
@@ -177,7 +213,14 @@ class ConversationRepository:
         await self._session.execute(stmt)
 
     async def delete_stale_conversations(self) -> int:
-        """Delete conversations idle for 90+ days with fewer than 5 accesses.
+        """Hard-delete conversations idle for 90+ days that are eligible for purge.
+
+        A row idle past the cutoff is purged when it is either low-engagement
+        (access_count < 5) or has been soft-deleted (is_deleted = True). The
+        soft-delete branch is what gives ``soft_delete_conversation`` its
+        eventual hard purge: a soft-deleted conversation is retained for audit
+        until it has been idle for 90 days, then removed regardless of its
+        access count.
 
         Uses a two-step SELECT ... FOR UPDATE SKIP LOCKED + DELETE so that rows
         held by active requests are skipped rather than blocked (FR-22).
@@ -198,7 +241,10 @@ class ConversationRepository:
             select(Conversation.id)
             .where(
                 Conversation.last_accessed < cutoff,
-                Conversation.access_count < 5,
+                or_(
+                    Conversation.access_count < 5,
+                    Conversation.is_deleted.is_(True),
+                ),
                 ~Conversation.id.in_(open_hitl),
             )
             .with_for_update(skip_locked=True)

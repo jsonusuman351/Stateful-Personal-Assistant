@@ -27,6 +27,7 @@ def _conv(
     user_id: uuid.UUID | None = None,
     last_accessed: datetime,
     access_count: int,
+    is_deleted: bool = False,
 ) -> Conversation:
     return Conversation(
         id=uuid.uuid4(),
@@ -34,6 +35,7 @@ def _conv(
         title="test",
         last_accessed=last_accessed,
         access_count=access_count,
+        is_deleted=is_deleted,
     )
 
 
@@ -64,6 +66,41 @@ async def test_only_stale_low_access_deleted(db_session: AsyncSession) -> None:
     assert stale_high.id in surviving
     assert recent_low.id in surviving
     assert recent_high.id in surviving
+
+
+async def test_soft_deleted_stale_high_access_purged(db_session: AsyncSession) -> None:
+    """A soft-deleted, stale conversation is purged even with high access_count.
+
+    The eventual-hard-purge contract for soft delete: once idle past the 90-day
+    cutoff, a soft-deleted conversation is removed regardless of access_count
+    (which the normal stale+low-access rule would otherwise keep).
+    """
+    deleted_stale = _conv(last_accessed=_STALE, access_count=50, is_deleted=True)
+    db_session.add(deleted_stale)
+    await db_session.flush()
+
+    repo = ConversationRepository(db_session)
+    deleted = await repo.delete_stale_conversations()
+
+    assert deleted == 1
+    assert await db_session.get(Conversation, deleted_stale.id) is None
+
+
+async def test_soft_deleted_recent_kept(db_session: AsyncSession) -> None:
+    """A soft-deleted but recently-accessed conversation is retained (grace window).
+
+    Soft delete is not an immediate purge: the row survives until it has been
+    idle for 90 days, preserving the audit window.
+    """
+    deleted_recent = _conv(last_accessed=_RECENT, access_count=50, is_deleted=True)
+    db_session.add(deleted_recent)
+    await db_session.flush()
+
+    repo = ConversationRepository(db_session)
+    deleted = await repo.delete_stale_conversations()
+
+    assert deleted == 0
+    assert await db_session.get(Conversation, deleted_recent.id) is not None
 
 
 async def test_open_hitl_skipped(db_session: AsyncSession) -> None:

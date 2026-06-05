@@ -105,15 +105,19 @@ async def list_messages(
         raise HTTPException(status_code=403, detail="Forbidden")
 
     user_uuid = uuid.UUID(current_user.user_id)
+
+    # Verify the conversation exists, is owned by this user, and is not
+    # soft-deleted *before* returning any messages. is_deleted is enforced in
+    # get_conversation, not in MessageRepository.list_messages — checking
+    # messages first would leak the history of a soft-deleted conversation
+    # that still has rows in the messages table.
+    conv_repo = ConversationRepository(db)
+    conv = await conv_repo.get_conversation(user_uuid, conv_uuid)
+    if conv is None:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
     msg_repo = MessageRepository(db)
     messages = await msg_repo.list_messages(user_uuid, conv_uuid)
-
-    # If no messages, check whether the conversation exists for this user
-    if not messages:
-        conv_repo = ConversationRepository(db)
-        conv = await conv_repo.get_conversation(user_uuid, conv_uuid)
-        if conv is None:
-            raise HTTPException(status_code=403, detail="Forbidden")
 
     return {
         "messages": [
@@ -139,9 +143,11 @@ async def delete_session(
     current_user: TokenPayload = Depends(require_auth_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Delete a conversation owned by the current user (FR-17).
+    """Soft-delete a conversation owned by the current user (FR-17).
 
-    Returns HTTP 403 for cross-user access with no distinguishing detail.
+    Sets ``is_deleted = True`` so the conversation is hidden from all reads but
+    its data is retained for audit; the retention job performs the eventual hard
+    purge. Returns HTTP 403 for cross-user access with no distinguishing detail.
     """
     conv_uuid = _parse_uuid(session_id)
     if conv_uuid is None:
@@ -154,7 +160,7 @@ async def delete_session(
     if conv is None:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    await repo.delete_conversation(user_uuid, conv_uuid)
+    await repo.soft_delete_conversation(user_uuid, conv_uuid)
 
 
 # ── POST /sessions/{id}/approve ───────────────────────────────────────────────

@@ -216,12 +216,20 @@ async def test_get_messages_returns_list() -> None:
     mock_msg_repo = AsyncMock()
     mock_msg_repo.list_messages = AsyncMock(return_value=[mock_msg])
 
+    # The endpoint resolves the conversation first (is_deleted-aware ownership
+    # check) before returning messages, so ConversationRepository must be mocked.
+    mock_conv_repo = AsyncMock()
+    mock_conv_repo.get_conversation = AsyncMock(return_value=MagicMock())
+
     _, mock_get_db = _mock_db_session()
     app = _make_app()
     app.dependency_overrides[require_auth_user] = lambda: user
     app.dependency_overrides[get_db] = mock_get_db
 
-    with patch("src.api.routers.sessions.MessageRepository", return_value=mock_msg_repo):
+    with (
+        patch("src.api.routers.sessions.MessageRepository", return_value=mock_msg_repo),
+        patch("src.api.routers.sessions.ConversationRepository", return_value=mock_conv_repo),
+    ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get(f"/sessions/{session_id}/messages")
 
@@ -271,7 +279,7 @@ async def test_delete_session_success_returns_204() -> None:
     mock_conv = MagicMock()
     mock_repo = AsyncMock()
     mock_repo.get_conversation = AsyncMock(return_value=mock_conv)
-    mock_repo.delete_conversation = AsyncMock()
+    mock_repo.soft_delete_conversation = AsyncMock()
 
     _, mock_get_db = _mock_db_session()
     app = _make_app()
@@ -283,7 +291,8 @@ async def test_delete_session_success_returns_204() -> None:
             resp = await c.delete(f"/sessions/{session_id}")
 
     assert resp.status_code == 204
-    mock_repo.delete_conversation.assert_awaited_once()
+    # DELETE is a soft delete — sets is_deleted=True, does not hard-delete the row
+    mock_repo.soft_delete_conversation.assert_awaited_once()
 
 
 async def test_delete_session_invalid_uuid_returns_403() -> None:
