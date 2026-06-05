@@ -235,6 +235,51 @@ async def test_cross_user_access_403(
     )
 
 
+async def test_soft_delete_hides_session_but_keeps_row(
+    async_client: Any,
+    db_engine: Any,
+) -> None:
+    """DELETE /sessions/{id} soft-deletes: hidden from reads, row retained (FR-17).
+
+    Full HTTP flow:
+    1. Conversation appears in GET /sessions.
+    2. DELETE /sessions/{id} returns 204.
+    3. It disappears from GET /sessions and GET /sessions/{id}/messages → 403.
+    4. The DB row still exists with is_deleted=True (retained for audit).
+    """
+    from sqlalchemy import select
+
+    from src.persistence.models.conversation import Conversation
+
+    user_id, _ = await _create_user(db_engine)
+    conv_id = await _create_conversation(db_engine, user_id, "Disposable")
+    headers = _auth_headers(user_id)
+
+    # 1. Visible before delete
+    resp = await async_client.get("/sessions", headers=headers)
+    assert resp.status_code == 200
+    assert str(conv_id) in {s["id"] for s in resp.json()["sessions"]}
+
+    # 2. Soft delete
+    del_resp = await async_client.delete(f"/sessions/{conv_id}", headers=headers)
+    assert del_resp.status_code == 204, f"DELETE returned {del_resp.status_code}: {del_resp.text}"
+
+    # 3. Hidden from list and messages
+    resp_after = await async_client.get("/sessions", headers=headers)
+    assert str(conv_id) not in {s["id"] for s in resp_after.json()["sessions"]}
+
+    msgs_resp = await async_client.get(f"/sessions/{conv_id}/messages", headers=headers)
+    assert msgs_resp.status_code == 403, (
+        f"Soft-deleted session should be 403, got {msgs_resp.status_code}"
+    )
+
+    # 4. Row retained with is_deleted=True
+    async with AsyncSession(db_engine, expire_on_commit=False) as session:
+        row = await session.scalar(select(Conversation).where(Conversation.id == conv_id))
+    assert row is not None, "Soft delete must not remove the row"
+    assert row.is_deleted is True
+
+
 async def test_message_history_ordered(
     async_client: Any,
     db_engine: Any,

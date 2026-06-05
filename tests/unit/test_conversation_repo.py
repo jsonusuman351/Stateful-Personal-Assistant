@@ -231,6 +231,63 @@ class TestDeleteConversation:
         assert result is not None  # still exists
 
 
+class TestSoftDeleteConversation:
+    """Tests for soft_delete_conversation() and is_deleted read filtering."""
+
+    async def test_soft_delete_sets_flag_not_removes_row(
+        self, repo: ConversationRepository, db_session: AsyncSession
+    ) -> None:
+        """soft_delete_conversation sets is_deleted=True but keeps the row."""
+        user_id = uuid4()
+        conv = await _make_conversation(db_session, user_id, "ToSoftDelete")
+
+        await repo.soft_delete_conversation(user_id, conv.id)
+
+        row = await db_session.get(Conversation, conv.id)
+        assert row is not None  # row still exists
+        assert row.is_deleted is True
+
+    async def test_soft_deleted_hidden_from_list(
+        self, repo: ConversationRepository, db_session: AsyncSession
+    ) -> None:
+        """list_conversations excludes soft-deleted conversations."""
+        user_id = uuid4()
+        keep = await _make_conversation(db_session, user_id, "Keep")
+        gone = await _make_conversation(db_session, user_id, "Gone")
+
+        await repo.soft_delete_conversation(user_id, gone.id)
+
+        items, _ = await repo.list_conversations(user_id)
+        ids = {c.id for c in items}
+        assert keep.id in ids
+        assert gone.id not in ids
+
+    async def test_soft_deleted_hidden_from_get(
+        self, repo: ConversationRepository, db_session: AsyncSession
+    ) -> None:
+        """get_conversation returns None for a soft-deleted conversation."""
+        user_id = uuid4()
+        conv = await _make_conversation(db_session, user_id, "Hidden")
+
+        await repo.soft_delete_conversation(user_id, conv.id)
+
+        assert await repo.get_conversation(user_id, conv.id) is None
+
+    async def test_soft_delete_other_user_is_noop(
+        self, repo: ConversationRepository, db_session: AsyncSession
+    ) -> None:
+        """soft_delete_conversation is a no-op when user_id does not match."""
+        owner = uuid4()
+        attacker = uuid4()
+        conv = await _make_conversation(db_session, owner, "Protected")
+
+        await repo.soft_delete_conversation(attacker, conv.id)
+
+        row = await db_session.get(Conversation, conv.id)
+        assert row is not None
+        assert row.is_deleted is False  # untouched
+
+
 class TestUpdateLastAccessed:
     """Tests for update_last_accessed()."""
 

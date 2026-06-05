@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, Integer, String, Uuid, func
+from sqlalchemy import Boolean, DateTime, Integer, String, Uuid, false, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.persistence.models.base import Base
@@ -28,3 +28,6 @@ class Conversation(Base):
     )
     access_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     message_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_deleted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false(), index=True
+    )

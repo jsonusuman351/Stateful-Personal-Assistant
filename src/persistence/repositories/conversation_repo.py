@@ -58,7 +58,10 @@ class ConversationRepository:
             except Exception:
                 cursor_ts = None
 
-        stmt = select(Conversation).where(Conversation.user_id == user_id)
+        stmt = select(Conversation).where(
+            Conversation.user_id == user_id,
+            Conversation.is_deleted.is_(False),
+        )
         if cursor_ts is not None:
             stmt = stmt.where(Conversation.last_accessed < cursor_ts)
         stmt = stmt.order_by(Conversation.last_accessed.desc()).limit(limit + 1)
@@ -91,6 +94,7 @@ class ConversationRepository:
         stmt = select(Conversation).where(
             Conversation.id == conversation_id,
             Conversation.user_id == user_id,
+            Conversation.is_deleted.is_(False),
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
@@ -144,11 +148,36 @@ class ConversationRepository:
                 return candidate
             suffix += 1
 
-    async def delete_conversation(self, user_id: UUID, conversation_id: UUID) -> None:
-        """Delete a conversation owned by user_id.
+    async def soft_delete_conversation(self, user_id: UUID, conversation_id: UUID) -> None:
+        """Mark a conversation as deleted without removing the row.
 
-        Silently no-ops when the conversation_id belongs to a different user
-        (caller must return HTTP 403 based on a prior ownership check).
+        Sets ``is_deleted = True`` so the conversation disappears from all
+        user-facing reads (``list_conversations``, ``get_conversation``) while
+        the underlying data is retained for audit and eventual hard purge by
+        the retention job. Scoped by user_id — silently no-ops when the
+        conversation_id belongs to a different user (caller enforces 403).
+
+        Args:
+            user_id: Must match the conversation's owner.
+            conversation_id: Conversation to soft-delete.
+        """
+        stmt = (
+            update(Conversation)
+            .where(
+                Conversation.id == conversation_id,
+                Conversation.user_id == user_id,
+            )
+            .values(is_deleted=True)
+        )
+        await self._session.execute(stmt)
+
+    async def delete_conversation(self, user_id: UUID, conversation_id: UUID) -> None:
+        """Permanently delete a conversation owned by user_id (hard delete).
+
+        Used by the retention job for eventual purge of stale rows. Not exposed
+        to end users — the user-facing ``DELETE /sessions/{id}`` endpoint calls
+        :meth:`soft_delete_conversation` instead. Silently no-ops when the
+        conversation_id belongs to a different user.
 
         Args:
             user_id: Must match the conversation's owner.

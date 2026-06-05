@@ -139,9 +139,11 @@ async def delete_session(
     current_user: TokenPayload = Depends(require_auth_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Delete a conversation owned by the current user (FR-17).
+    """Soft-delete a conversation owned by the current user (FR-17).
 
-    Returns HTTP 403 for cross-user access with no distinguishing detail.
+    Sets ``is_deleted = True`` so the conversation is hidden from all reads but
+    its data is retained for audit; the retention job performs the eventual hard
+    purge. Returns HTTP 403 for cross-user access with no distinguishing detail.
     """
     conv_uuid = _parse_uuid(session_id)
     if conv_uuid is None:
@@ -154,7 +156,7 @@ async def delete_session(
     if conv is None:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    await repo.delete_conversation(user_uuid, conv_uuid)
+    await repo.soft_delete_conversation(user_uuid, conv_uuid)
 
 
 # ── POST /sessions/{id}/approve ───────────────────────────────────────────────

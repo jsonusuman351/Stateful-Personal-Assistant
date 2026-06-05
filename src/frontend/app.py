@@ -116,6 +116,24 @@ def _backend_post(path: str, payload: dict[str, Any]) -> requests.Response | Non
         return None
 
 
+def _backend_delete(path: str) -> requests.Response | None:
+    """DELETE request; returns None on connection error."""
+    try:
+        resp = requests.delete(
+            f"{BACKEND_URL}{path}",
+            headers=_auth_headers(),
+            timeout=REQUEST_TIMEOUT,
+        )
+        st.session_state.backend_ok = True
+        return resp
+    except requests.ConnectionError:
+        st.session_state.backend_ok = False
+        return None
+    except requests.Timeout:
+        st.session_state.backend_ok = False
+        return None
+
+
 def _obtain_guest_token() -> bool:
     """Call POST /auth/guest and store the token. Returns True on success."""
     resp = _backend_post("/auth/guest", {})
@@ -535,6 +553,84 @@ def _send_and_stream(user_message: str) -> None:
             st.session_state.pending_hitl = pending_hitl
 
 
+# ── Saved sessions (authenticated users only) ─────────────────────────────────
+
+
+def _fetch_sessions() -> list[dict[str, Any]]:
+    """GET /sessions for the logged-in user. Returns [] for guests or on error."""
+    resp = _backend_get("/sessions")
+    if resp is None or resp.status_code != 200:
+        return []
+    sessions: list[dict[str, Any]] = resp.json().get("sessions", [])
+    return sessions
+
+
+def _soft_delete_session(session_id: str) -> str | None:
+    """DELETE /sessions/{id} (soft delete). Returns an error message or None."""
+    resp = _backend_delete(f"/sessions/{session_id}")
+    if resp is None:
+        return "Cannot reach the backend server."
+    if resp.status_code == 204:
+        return None
+    if resp.status_code == 403:
+        return "You do not have access to this conversation."
+    return f"Delete failed (HTTP {resp.status_code})."
+
+
+def _open_session(session_id: str) -> None:
+    """Load an existing conversation's history into the chat view."""
+    st.session_state.session_id = session_id
+    st.session_state.pending_hitl = None
+    st.session_state.last_event_id = 0
+    st.session_state.chat_history = []
+
+    resp = _backend_get(f"/sessions/{session_id}/messages")
+    if resp is not None and resp.status_code == 200:
+        for m in resp.json().get("messages", []):
+            st.session_state.chat_history.append(
+                {"role": m["role"], "content": m["content"], "meta": {}}
+            )
+
+
+def _render_session_list() -> None:
+    """Render the saved-conversation list with open + trash controls.
+
+    Auth-only: ``GET /sessions`` returns 403 for guests, so this is hidden in
+    guest mode. Each row has an open button (loads history) and a trash button
+    that soft-deletes the conversation, then refreshes the list.
+    """
+    st.markdown("**Saved conversations**")
+
+    sessions = _fetch_sessions()
+    if not sessions:
+        st.caption("No saved conversations yet.")
+        return
+
+    for s in sessions:
+        sid: str = s["id"]
+        title: str = s.get("title") or "Untitled"
+        is_active = sid == st.session_state.get("session_id")
+
+        open_col, del_col = st.columns([8, 1])
+        with open_col:
+            label = f"{'➡️ ' if is_active else ''}{title}"
+            if st.button(label, key=f"open_{sid}", use_container_width=True):
+                _open_session(sid)
+                st.rerun()
+        with del_col:
+            if st.button("🗑", key=f"del_{sid}", help="Delete conversation"):
+                err = _soft_delete_session(sid)
+                if err:
+                    st.error(err)
+                else:
+                    # If we deleted the active conversation, reset the chat view
+                    if is_active:
+                        st.session_state.session_id = None
+                        st.session_state.chat_history = []
+                        st.session_state.pending_hitl = None
+                    st.rerun()
+
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
 
@@ -598,6 +694,11 @@ def _render_sidebar() -> None:
 
         if st.session_state.session_id:
             st.caption(f"Session: `{st.session_state.session_id[:8]}…`")
+
+        # ── Saved conversations (auth users only) ─────────────────────────────
+        if not st.session_state.is_guest:
+            st.divider()
+            _render_session_list()
 
         st.divider()
 

@@ -271,7 +271,7 @@ async def test_delete_session_success_returns_204() -> None:
     mock_conv = MagicMock()
     mock_repo = AsyncMock()
     mock_repo.get_conversation = AsyncMock(return_value=mock_conv)
-    mock_repo.delete_conversation = AsyncMock()
+    mock_repo.soft_delete_conversation = AsyncMock()
 
     _, mock_get_db = _mock_db_session()
     app = _make_app()
@@ -283,7 +283,8 @@ async def test_delete_session_success_returns_204() -> None:
             resp = await c.delete(f"/sessions/{session_id}")
 
     assert resp.status_code == 204
-    mock_repo.delete_conversation.assert_awaited_once()
+    # DELETE is a soft delete — sets is_deleted=True, does not hard-delete the row
+    mock_repo.soft_delete_conversation.assert_awaited_once()
 
 
 async def test_delete_session_invalid_uuid_returns_403() -> None:
