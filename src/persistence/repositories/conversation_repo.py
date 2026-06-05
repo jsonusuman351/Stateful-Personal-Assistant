@@ -11,7 +11,7 @@ import base64
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.persistence.models.conversation import Conversation
@@ -119,13 +119,19 @@ class ConversationRepository:
         return conversation
 
     async def _unique_title(self, user_id: UUID, title: str) -> str:
-        """Return a title that is unique for this user, disambiguating if needed."""
+        """Return a title that is unique among this user's visible conversations.
+
+        Soft-deleted conversations are excluded from the collision check so that
+        re-using the title of a deleted conversation does not produce a spurious
+        " (2)" suffix.
+        """
         count_stmt = (
             select(func.count())
             .select_from(Conversation)
             .where(
                 Conversation.user_id == user_id,
                 Conversation.title == title,
+                Conversation.is_deleted.is_(False),
             )
         )
         result = await self._session.execute(count_stmt)
@@ -141,6 +147,7 @@ class ConversationRepository:
                 .where(
                     Conversation.user_id == user_id,
                     Conversation.title == candidate,
+                    Conversation.is_deleted.is_(False),
                 )
             )
             result2 = await self._session.execute(check_stmt)
@@ -206,7 +213,14 @@ class ConversationRepository:
         await self._session.execute(stmt)
 
     async def delete_stale_conversations(self) -> int:
-        """Delete conversations idle for 90+ days with fewer than 5 accesses.
+        """Hard-delete conversations idle for 90+ days that are eligible for purge.
+
+        A row idle past the cutoff is purged when it is either low-engagement
+        (access_count < 5) or has been soft-deleted (is_deleted = True). The
+        soft-delete branch is what gives ``soft_delete_conversation`` its
+        eventual hard purge: a soft-deleted conversation is retained for audit
+        until it has been idle for 90 days, then removed regardless of its
+        access count.
 
         Uses a two-step SELECT ... FOR UPDATE SKIP LOCKED + DELETE so that rows
         held by active requests are skipped rather than blocked (FR-22).
@@ -227,7 +241,10 @@ class ConversationRepository:
             select(Conversation.id)
             .where(
                 Conversation.last_accessed < cutoff,
-                Conversation.access_count < 5,
+                or_(
+                    Conversation.access_count < 5,
+                    Conversation.is_deleted.is_(True),
+                ),
                 ~Conversation.id.in_(open_hitl),
             )
             .with_for_update(skip_locked=True)

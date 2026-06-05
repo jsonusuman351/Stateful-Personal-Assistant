@@ -287,6 +287,21 @@ class TestSoftDeleteConversation:
         assert row is not None
         assert row.is_deleted is False  # untouched
 
+    async def test_unique_title_ignores_soft_deleted(
+        self, repo: ConversationRepository, db_session: AsyncSession
+    ) -> None:
+        """Re-using a soft-deleted conversation's title yields no '(2)' suffix."""
+        user_id = uuid4()
+        first = await repo.create_conversation(user_id, "Project Notes")
+        await db_session.flush()
+
+        await repo.soft_delete_conversation(user_id, first.id)
+
+        # The visible namespace no longer contains "Project Notes", so the new
+        # conversation should reclaim the bare title rather than become "(2)".
+        second = await repo.create_conversation(user_id, "Project Notes")
+        assert second.title == "Project Notes"
+
 
 class TestUpdateLastAccessed:
     """Tests for update_last_accessed()."""
