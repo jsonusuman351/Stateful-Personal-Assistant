@@ -63,11 +63,17 @@ def _init_state() -> None:
         "stream_id": None,  # kept for HITL reconnection
         "last_event_id": 0,  # last SSE event id seen in this turn
         "backend_ok": True,
+        "session_started_at": time.time(),  # wall-clock start of the active session
         "initialized": True,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+
+
+def _reset_session_timer() -> None:
+    """Restart the session timer (called whenever a fresh session begins)."""
+    st.session_state.session_started_at = time.time()
 
 
 def _auth_headers() -> dict[str, str]:
@@ -168,6 +174,7 @@ def _register(email: str, password: str, confirm: str) -> str | None:
         st.session_state.session_id = None
         st.session_state.chat_history = []
         st.session_state.pending_hitl = None
+        _reset_session_timer()
         return None
     if resp.status_code == 409:
         return "An account with this email already exists. Please log in."
@@ -191,6 +198,7 @@ def _login(email: str, password: str) -> str | None:
         st.session_state.session_id = None
         st.session_state.chat_history = []
         st.session_state.pending_hitl = None
+        _reset_session_timer()
         return None
     if resp.status_code == 429:
         return "Too many login attempts. Please wait and try again."
@@ -205,6 +213,7 @@ def _logout() -> None:
     st.session_state.chat_history = []
     st.session_state.session_id = None
     st.session_state.pending_hitl = None
+    _reset_session_timer()
     _obtain_guest_token()
 
 
@@ -583,6 +592,7 @@ def _open_session(session_id: str) -> None:
     st.session_state.pending_hitl = None
     st.session_state.last_event_id = 0
     st.session_state.chat_history = []
+    _reset_session_timer()
 
     resp = _backend_get(f"/sessions/{session_id}/messages")
     if resp is not None and resp.status_code == 200:
@@ -629,6 +639,32 @@ def _render_session_list() -> None:
                         st.session_state.chat_history = []
                         st.session_state.pending_hitl = None
                     st.rerun()
+
+
+# ── Session timer ─────────────────────────────────────────────────────────────
+
+
+def _format_elapsed(seconds: float) -> str:
+    """Format an elapsed duration in seconds as ``HH:MM:SS``."""
+    total = max(0, int(seconds))
+    hours, remainder = divmod(total, 3600)
+    minutes, secs = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
+@st.fragment(run_every=1)
+def _render_session_timer() -> None:
+    """Live session-duration readout, refreshed once per second.
+
+    Declared as a fragment so only this widget reruns each second — the rest of
+    the app (chat history, SSE streams) is untouched. The start time is reset by
+    :func:`_reset_session_timer` whenever a fresh session begins.
+    """
+    started_at = st.session_state.get("session_started_at")
+    if not started_at:
+        return
+    elapsed = time.time() - started_at
+    st.metric("⏱️ Session time", _format_elapsed(elapsed))
 
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -687,6 +723,7 @@ def _render_sidebar() -> None:
             st.session_state.chat_history = []
             st.session_state.pending_hitl = None
             st.session_state.last_event_id = 0
+            _reset_session_timer()
             if st.session_state.is_guest:
                 # Re-obtain a fresh guest token for a clean slate
                 _obtain_guest_token()
@@ -694,6 +731,9 @@ def _render_sidebar() -> None:
 
         if st.session_state.session_id:
             st.caption(f"Session: `{st.session_state.session_id[:8]}…`")
+
+        # ── Session timer (dashboard) ─────────────────────────────────────────
+        _render_session_timer()
 
         # ── Saved conversations (auth users only) ─────────────────────────────
         if not st.session_state.is_guest:

@@ -74,6 +74,17 @@ module = [
 ]
 ignore_missing_imports = true
 
+# The Streamlit UI is not type-checked against real stubs in CI — the
+# typecheck job installs only requirements.txt, so `st` resolves to Any and
+# decorators like @st.fragment register as untyped. Relax that single strict
+# check for the frontend module only (the rest of strict mode still applies).
+[[tool.mypy.overrides]]
+module = [
+    "src.frontend",
+    "src.frontend.*",
+]
+disallow_untyped_decorators = false
+
 # ── Pytest ─────────────────────────────────────────────────────────────────────
 
 [tool.pytest.ini_options]
