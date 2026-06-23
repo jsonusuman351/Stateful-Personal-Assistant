@@ -36,12 +36,74 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Inject a small style tweak so the chat container fills the viewport height
+# Inject a colourful theme: gradient accents, rounded chat bubbles, lively buttons.
 st.markdown(
     """
     <style>
-    .block-container { padding-top: 1.5rem; }
-    .stChatMessage { border-radius: 0.75rem; }
+    /* ── App canvas ─────────────────────────────────────────────────────── */
+    .stApp {
+        background:
+            radial-gradient(1200px 600px at 100% -10%, rgba(124, 58, 237, 0.10), transparent 60%),
+            radial-gradient(1000px 500px at -10% 0%, rgba(236, 72, 153, 0.10), transparent 55%);
+    }
+    .block-container { padding-top: 1.5rem; max-width: 1100px; }
+
+    /* ── Gradient hero header ───────────────────────────────────────────── */
+    .spa-hero {
+        background: linear-gradient(120deg, #7c3aed 0%, #db2777 50%, #f59e0b 100%);
+        border-radius: 1.1rem;
+        padding: 1.4rem 1.6rem;
+        margin-bottom: 0.6rem;
+        box-shadow: 0 10px 30px rgba(124, 58, 237, 0.25);
+        color: #fff;
+    }
+    .spa-hero h1 {
+        margin: 0;
+        font-size: 1.9rem;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        color: #fff;
+    }
+    .spa-hero p { margin: 0.35rem 0 0; opacity: 0.92; font-size: 0.95rem; }
+    .spa-pills { margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .spa-pill {
+        background: rgba(255, 255, 255, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 999px;
+        padding: 0.2rem 0.7rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        backdrop-filter: blur(4px);
+    }
+
+    /* ── Chat bubbles ───────────────────────────────────────────────────── */
+    .stChatMessage {
+        border-radius: 1rem;
+        border: 1px solid rgba(124, 58, 237, 0.08);
+        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+    }
+
+    /* ── Buttons: gradient primaries, soft secondaries ──────────────────── */
+    .stButton > button {
+        border-radius: 0.7rem;
+        font-weight: 600;
+        transition: transform 0.05s ease, box-shadow 0.15s ease;
+    }
+    .stButton > button:hover { transform: translateY(-1px); }
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(120deg, #7c3aed, #db2777);
+        border: none;
+        box-shadow: 0 6px 16px rgba(219, 39, 119, 0.30);
+    }
+
+    /* ── Sidebar tint ───────────────────────────────────────────────────── */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, rgba(124, 58, 237, 0.06), rgba(236, 72, 153, 0.04));
+        border-right: 1px solid rgba(124, 58, 237, 0.10);
+    }
+
+    /* ── Chat input ─────────────────────────────────────────────────────── */
+    .stChatInput textarea { border-radius: 0.8rem; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -636,8 +698,18 @@ def _render_session_list() -> None:
 
 def _render_sidebar() -> None:
     with st.sidebar:
-        st.title("🤖 Assistant")
-        st.caption("Stateful Personal Assistant")
+        st.markdown(
+            """
+            <div style="
+                background: linear-gradient(120deg, #7c3aed, #db2777);
+                border-radius: 0.9rem; padding: 0.85rem 1rem; margin-bottom: 0.5rem;
+                color: #fff; box-shadow: 0 6px 18px rgba(124, 58, 237, 0.25);">
+                <div style="font-size: 1.15rem; font-weight: 800;">🤖 Assistant</div>
+                <div style="font-size: 0.78rem; opacity: 0.9;">Stateful Personal Assistant</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         st.divider()
 
         # ── Auth section ──────────────────────────────────────────────────────
@@ -812,10 +884,25 @@ def main() -> None:
 
     _render_sidebar()
 
-    st.title("💬 Stateful Personal Assistant")
-    st.caption(
-        "Powered by LangGraph · Tools: weather, calculator, web search · "
-        "Streaming · Human-in-the-Loop"
+    mode_pill = (
+        "👤 Guest session" if st.session_state.is_guest else f"✅ {st.session_state.user_email}"
+    )
+    st.markdown(
+        f"""
+        <div class="spa-hero">
+            <h1>💬 Stateful Personal Assistant</h1>
+            <p>Your colourful, always-on AI companion — powered by LangGraph.</p>
+            <div class="spa-pills">
+                <span class="spa-pill">🌦️ Weather</span>
+                <span class="spa-pill">🧮 Calculator</span>
+                <span class="spa-pill">🔎 Web Search</span>
+                <span class="spa-pill">⚡ Streaming</span>
+                <span class="spa-pill">🛡️ Human-in-the-Loop</span>
+                <span class="spa-pill">{mode_pill}</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     # HITL approval banner at the top so it's always visible
