@@ -52,6 +52,15 @@ class Settings(BaseSettings):
     # ── Auth ──────────────────────────────────────────────────────────────────
     AUTH_LOCKOUT_MINUTES: int = 15
 
+    # ── Startup resilience ────────────────────────────────────────────────────
+    # When True (default, NFR-10): if Alembic migrations or the LangGraph
+    # checkpointer fail to reach the database at startup, the process exits
+    # non-zero and never serves traffic. Set False on hosts where the database
+    # may be temporarily unavailable (e.g. a suspended Render free-tier DB): the
+    # app then boots in DEGRADED mode — non-DB endpoints keep working and
+    # DB-backed requests return a clean 503 instead of crashing the process.
+    STARTUP_DB_REQUIRED: bool = True
+
     # ── Connection pools (NFR-7) ──────────────────────────────────────────────
     DB_POOL_MIN: int = 2
     DB_POOL_MAX: int = 10

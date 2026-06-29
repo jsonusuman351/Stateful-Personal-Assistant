@@ -121,6 +121,36 @@ def register_exception_handlers(app: FastAPI) -> None:
     """
     from fastapi import HTTPException
     from pydantic import ValidationError
+    from redis.exceptions import ConnectionError as RedisConnectionError
+    from redis.exceptions import TimeoutError as RedisTimeoutError
+    from sqlalchemy.exc import InterfaceError, OperationalError
+
+    async def _service_unavailable(request: Request, exc: Exception) -> JSONResponse:
+        """Map a backing-store connectivity failure to a clean, retryable 503.
+
+        Keeps the process alive when PostgreSQL or Redis is temporarily
+        unreachable (e.g. a suspended Render free-tier instance) instead of
+        letting the raw driver exception bubble up as a 500. Pairs with the
+        DEGRADED-mode startup path in ``lifespan`` (see ``STARTUP_DB_REQUIRED``).
+        """
+        logger.error("Backing store unavailable", exc_info=exc)
+        return JSONResponse(
+            status_code=503,
+            content=_error_body(
+                "SERVICE_UNAVAILABLE",
+                "A required backing service is temporarily unavailable. Please try again shortly.",
+                retryable=True,
+                retry_after_seconds=30,
+            ),
+        )
+
+    # SQLAlchemy raises OperationalError / InterfaceError when the connection
+    # cannot be established or is dropped; Redis raises its own connection
+    # errors. All map to the same retryable 503.
+    app.add_exception_handler(OperationalError, _service_unavailable)
+    app.add_exception_handler(InterfaceError, _service_unavailable)
+    app.add_exception_handler(RedisConnectionError, _service_unavailable)
+    app.add_exception_handler(RedisTimeoutError, _service_unavailable)
 
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
