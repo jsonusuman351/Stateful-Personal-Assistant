@@ -78,16 +78,59 @@ async def _conversation_retention_job() -> None:
         await asyncio.sleep(86400)  # daily
 
 
+def _run_alembic_upgrade() -> bool:
+    """Run ``alembic upgrade head`` in a subprocess.
+
+    Returns:
+        True if migrations applied (or were already up to date); False if the
+        migration command failed or could not be launched (e.g. the database
+        host is unreachable). Logs the failure at CRITICAL level either way —
+        the caller decides whether a failure is fatal (see ``STARTUP_DB_REQUIRED``).
+    """
+    import subprocess
+
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except Exception as exc:
+        logger.critical("Alembic migration error: %s", exc)
+        return False
+
+    if proc.returncode != 0:
+        logger.critical(
+            "Alembic migration failed (exit %d): %s",
+            proc.returncode,
+            proc.stderr,
+        )
+        return False
+
+    logger.info("Alembic migrations applied: %s", proc.stdout.strip() or "up to date")
+    return True
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """App startup and shutdown lifecycle hook.
 
     Startup order (NFR-10):
     1. Configure structured logging.
-    2. Run ``alembic upgrade head`` — ``sys.exit(1)`` on failure.
+    2. Run ``alembic upgrade head``.
     3. Set up LangGraph PostgreSQL checkpointer.
     4. Load tool registry from ``config/tools.yaml``.
     5. Set ``app.state.ready = True``.
+
+    Database resilience: steps 2–3 require the database. If either fails and
+    ``STARTUP_DB_REQUIRED`` is True (default, NFR-10), the process exits
+    non-zero and never serves traffic. If it is False, the app instead boots in
+    DEGRADED mode (``app.state.db_available = False``): the process stays up,
+    non-DB endpoints keep working, and DB-backed requests surface a clean 503
+    (see the database error handlers in ``register_exception_handlers``). This
+    lets a deployment survive a temporarily suspended database (e.g. a Render
+    free-tier DB) instead of crash-looping.
 
     Shutdown (NFR-9):
     1. Dispose DB engine pool.
@@ -103,43 +146,45 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     configure_logging()
     settings = get_settings()
+    app.state.db_available = True
 
-    # 1. Alembic migrations — process must not serve traffic if they fail
-    try:
-        import subprocess
-
-        proc = subprocess.run(
-            [sys.executable, "-m", "alembic", "upgrade", "head"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if proc.returncode != 0:
-            logger.critical(
-                "Alembic migration failed (exit %d): %s",
-                proc.returncode,
-                proc.stderr,
-            )
+    # 1. Alembic migrations — must succeed before serving DB-backed traffic.
+    if not _run_alembic_upgrade():
+        if settings.STARTUP_DB_REQUIRED:
             sys.exit(1)
-        logger.info("Alembic migrations applied: %s", proc.stdout.strip() or "up to date")
-    except SystemExit:
-        raise
-    except Exception as exc:
-        logger.critical("Alembic migration error: %s", exc)
-        sys.exit(1)
+        app.state.db_available = False
+        logger.critical(
+            "DEGRADED MODE: database unavailable at startup (migrations failed). "
+            "Non-DB endpoints will serve; DB-backed requests return 503 until the "
+            "database recovers and the app is restarted."
+        )
 
-    # 2. LangGraph checkpointer setup (idempotent)
-    await setup_checkpointer()
+    # 2. LangGraph checkpointer setup (idempotent) — also needs the database.
+    if app.state.db_available:
+        try:
+            await setup_checkpointer()
+        except Exception as exc:
+            if settings.STARTUP_DB_REQUIRED:
+                logger.critical("Checkpointer setup failed: %s", exc)
+                raise
+            app.state.db_available = False
+            logger.critical("DEGRADED MODE: checkpointer setup failed: %s", exc)
 
-    # 3. Tool registry
+    # 3. Tool registry (no database dependency)
     registry_path = Path(__file__).resolve().parent.parent.parent / "config" / "tools.yaml"
     load_registry(registry_path)
 
     app.state.ready = True
 
-    # 4. Background tasks — started after ready so they can use DB/Redis
-    sweeper = asyncio.create_task(_hitl_timeout_sweeper(), name="hitl-timeout-sweeper")
-    retention = asyncio.create_task(_conversation_retention_job(), name="conversation-retention")
+    # 4. Background tasks — both query the database every tick, so only start
+    #    them when the database came up. They are skipped in degraded mode.
+    sweeper: asyncio.Task[None] | None = None
+    retention: asyncio.Task[None] | None = None
+    if app.state.db_available:
+        sweeper = asyncio.create_task(_hitl_timeout_sweeper(), name="hitl-timeout-sweeper")
+        retention = asyncio.create_task(
+            _conversation_retention_job(), name="conversation-retention"
+        )
 
     yield
 
@@ -147,6 +192,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Cancel background tasks first so they release DB connections before
     # the pool is disposed (NFR-9).
     for task in (sweeper, retention):
+        if task is None:
+            continue
         task.cancel()
         try:
             await task

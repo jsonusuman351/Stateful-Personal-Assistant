@@ -328,6 +328,77 @@ async def test_lifespan_exits_on_migration_failure() -> None:
             pass  # should not reach here
 
 
+async def test_lifespan_degraded_mode_when_db_not_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With STARTUP_DB_REQUIRED=false, a migration failure boots DEGRADED, not exit.
+
+    The process must stay up (no SystemExit), mark ``db_available = False`` but
+    still become ``ready`` so it can serve non-DB endpoints and return 503s for
+    DB-backed ones.
+    """
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from fastapi import FastAPI
+
+    from src.api.main import lifespan
+    from src.config.settings import get_settings
+
+    monkeypatch.setenv("STARTUP_DB_REQUIRED", "false")
+    get_settings.cache_clear()
+
+    mock_proc = MagicMock()
+    mock_proc.returncode = 1  # migration fails (DB unreachable)
+    mock_proc.stderr = "could not translate host name"
+    mock_proc.stdout = ""
+
+    mock_engine = AsyncMock()
+    mock_engine.dispose = AsyncMock()
+
+    app = FastAPI()
+
+    setup_spy = AsyncMock()
+    with (
+        patch("subprocess.run", return_value=mock_proc),
+        patch("src.persistence.checkpointer.setup_checkpointer", setup_spy),
+        patch("src.tools.registry.load_registry"),
+        patch("src.persistence.checkpointer.teardown_checkpointer", AsyncMock()),
+        patch("src.persistence.database.get_engine", return_value=mock_engine),
+        patch("src.persistence.redis_client.close_redis", AsyncMock()),
+        patch("src.utils.logging.configure_logging"),
+        patch("src.api.main._hitl_timeout_sweeper", _noop_bg),
+        patch("src.api.main._conversation_retention_job", _noop_bg),
+    ):
+        async with lifespan(app):
+            assert app.state.ready is True
+            assert app.state.db_available is False
+
+    # Checkpointer setup must be skipped when the database is unavailable.
+    setup_spy.assert_not_awaited()
+
+
+async def test_db_connection_error_returns_503() -> None:
+    """A SQLAlchemy OperationalError from a handler maps to a retryable 503."""
+    from sqlalchemy.exc import OperationalError
+
+    from src.api.middleware import register_exception_handlers
+
+    app = FastAPI()
+    register_exception_handlers(app)
+
+    @app.get("/db")
+    async def _db_route() -> dict[str, str]:
+        raise OperationalError("SELECT 1", {}, Exception("connection refused"))
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/db")
+
+    assert resp.status_code == 503
+    body = resp.json()
+    assert body["error"]["code"] == "SERVICE_UNAVAILABLE"
+    assert body["error"]["retryable"] is True
+
+
 async def test_lifespan_shutdown_disposes_engine() -> None:
     """lifespan dispose() is called during graceful shutdown."""
     from unittest.mock import AsyncMock, MagicMock, patch
