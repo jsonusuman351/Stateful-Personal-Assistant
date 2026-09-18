@@ -104,6 +104,18 @@ st.markdown(
 
     /* ── Chat input ─────────────────────────────────────────────────────── */
     .stChatInput textarea { border-radius: 0.8rem; }
+
+    /* ── Dashboard metric cards ─────────────────────────────────────────── */
+    .spa-metric-card {
+        border-radius: 0.9rem;
+        padding: 0.9rem 1rem;
+        color: #fff;
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+        text-align: center;
+    }
+    .spa-metric-card .icon { font-size: 1.5rem; }
+    .spa-metric-card .value { font-size: 1.5rem; font-weight: 800; line-height: 1.3; }
+    .spa-metric-card .label { font-size: 0.8rem; opacity: 0.9; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -729,6 +741,53 @@ def _render_session_timer() -> None:
     st.metric("⏱️ Session time", _format_elapsed(elapsed))
 
 
+# ── Dashboard metrics (NEW — big visible change) ──────────────────────────────
+
+
+def _compute_dashboard_metrics() -> dict[str, Any]:
+    """Derive simple usage metrics from the current chat history."""
+    history = st.session_state.chat_history
+    user_msgs = sum(1 for m in history if m["role"] == "user")
+    assistant_msgs = sum(1 for m in history if m["role"] == "assistant")
+    tool_calls = sum(len(m.get("meta", {}).get("tool_results", [])) for m in history)
+    return {
+        "messages": user_msgs,
+        "responses": assistant_msgs,
+        "tool_calls": tool_calls,
+    }
+
+
+def _render_dashboard_metrics() -> None:
+    """Render a prominent row of gradient metric cards summarising the session."""
+    metrics = _compute_dashboard_metrics()
+
+    cards = [
+        ("💬", "Messages Sent", metrics["messages"], "#7c3aed, #a78bfa"),
+        ("🤖", "AI Responses", metrics["responses"], "#db2777, #f472b6"),
+        ("🛠️", "Tools Triggered", metrics["tool_calls"], "#f59e0b, #fbbf24"),
+        (
+            "🔐",
+            "Access Mode",
+            "Guest" if st.session_state.is_guest else "Signed in",
+            "#059669, #34d399",
+        ),
+    ]
+
+    cols = st.columns(len(cards))
+    for col, (icon, label, value, gradient) in zip(cols, cards, strict=True):
+        with col:
+            st.markdown(
+                f"""
+                <div class="spa-metric-card" style="background: linear-gradient(135deg, {gradient});">
+                    <div class="icon">{icon}</div>
+                    <div class="value">{value}</div>
+                    <div class="label">{label}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
 
@@ -960,6 +1019,10 @@ def main() -> None:
         """,
         unsafe_allow_html=True,
     )
+
+    # ── Dashboard metrics row (NEW — big, visible change) ────────────────────
+    _render_dashboard_metrics()
+    st.divider()
 
     # HITL approval banner at the top so it's always visible
     _render_hitl_banner()
