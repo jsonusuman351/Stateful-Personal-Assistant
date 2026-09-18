@@ -824,6 +824,22 @@ def _render_sidebar() -> None:
 
         st.caption(f"URL: `{BACKEND_URL}`")
 
+        st.divider()
+
+        # ── Build badge (demo of CI/CD in action) ───────────────────────────
+        st.markdown(
+            """
+            <div style="
+                background: linear-gradient(120deg, #059669, #34d399);
+                border-radius: 0.6rem; padding: 0.5rem 0.8rem;
+                color: #fff; font-size: 0.75rem; font-weight: 600;
+                text-align: center;">
+                🚀 Live via CI/CD Pipeline
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
 
 # ── HITL approval banner ──────────────────────────────────────────────────────
 
